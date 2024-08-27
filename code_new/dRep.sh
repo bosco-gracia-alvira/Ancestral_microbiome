@@ -21,7 +21,7 @@ for i in $(basename -a "$TEMP"/Genomes/*.fa);
 do
     mv "$TEMP"/Genomes/${i} "$TEMP"/Genomes/${i}sta;
 done
-git add code/**/*.sh code/**/*.R code/**/*.Rmd
+
 eval "$(conda shell.bash hook)"
 conda activate drep-3.4
 export CHECKM_DATA_PATH=/Users/bgracia/PhD_local/db/CheckM
