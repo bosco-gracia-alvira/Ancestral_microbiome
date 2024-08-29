@@ -17,9 +17,9 @@ fi
 cp "$WORKDIR"/DeNovo_Assembly_*/06_MERGED/SUMMARY_FINAL/bin_by_bin/*/*.fa "$TEMP"/Genomes/
 cp "$ASSEMBLY"/Pool_???/07.GTDB-Tk/Genomes/*.fasta "$TEMP"/Genomes/
 
-for i in $(basename -a "$TEMP"/Genomes/*.fa);
+for i in $(basename -a "$TEMP"/Genomes/*.fa)
 do
-    mv "$TEMP"/Genomes/${i} "$TEMP"/Genomes/${i}sta;
+    mv "$TEMP"/Genomes/${i} "$TEMP"/Genomes/${i}sta
 done
 
 eval "$(conda shell.bash hook)"
@@ -63,3 +63,27 @@ cat "$TEMP"/GTDB-Tk/*/gtdbtk.bac120.summary.tsv | sort -ur > "$TEMP"/GTDB-Tk/sum
 mv "$TEMP"/dRep "$WORKDIR"
 mv "$TEMP"/GTDB-Tk/summary.tsv "$WORKDIR"/dRep
 rm -r "$TEMP"
+
+# We will create a name2taxon file with the lowest taxonomic level available
+cut -f1 "$WORKDIR"/dRep/summary.tsv > "$WORKDIR"/dRep/genome.tmp
+cut -f2 "$WORKDIR"/dRep/summary.tsv > "$WORKDIR"/dRep/taxon.tmp
+
+# This removes the unassigned taxonomic levels in each row
+for i in s g f o c p
+do
+    sed -i "" "s/;${i}__\$//g" "$WORKDIR"/dRep/taxon.tmp
+done
+
+rev "$WORKDIR"/dRep/taxon.tmp | cut -d ";" -f1 | rev > "$WORKDIR"/dRep/taxon2.tmp
+
+awk '
+{
+    count[$0]++
+    if (count[$0] > 1) {
+        print $0 "_" (count[$0])
+    } else {
+        print $0
+    }
+}' "$WORKDIR"/dRep/taxon2.tmp > "$WORKDIR"/dRep/taxon3.tmp
+paste "$WORKDIR"/dRep/genome.tmp "$WORKDIR"/dRep/taxon3.tmp > "$WORKDIR"/dRep/name2taxon.tsv
+rm "$WORKDIR"/dRep/*.tmp
