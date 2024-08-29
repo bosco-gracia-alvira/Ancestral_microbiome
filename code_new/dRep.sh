@@ -39,34 +39,46 @@ dRep dereplicate \
     -cm larger \
     -p 10
 
-conda deactivate
-
-eval "$(conda shell.bash hook)"
-conda activate gtdbtk-2.0
-export GTDBTK_DATA_PATH=/Users/bgracia/PhD_local/db/GTDB/release207
-
-mkdir "$TEMP"/GTDB-Tk
-
-for i in $(basename "$TEMP"/dRep/dereplicated_genomes/*.fasta);
-do  mkdir "$TEMP"/GTDB-Tk/${i%.fasta};
-    cp "$TEMP"/dRep/dereplicated_genomes/${i} "$TEMP"/GTDB-Tk/${i%.fasta}/${i}
-    gtdbtk classify_wf \
-                --genome_dir "$TEMP"/GTDB-Tk/${i%.fasta} \
-                -x fasta \
-                --cpus 8 \
-                --out_dir "$TEMP"/GTDB-Tk/${i%.fasta};
-    rm "$TEMP"/GTDB-Tk/${i%.fasta}/${i};
-done
-
-cat "$TEMP"/GTDB-Tk/*/gtdbtk.bac120.summary.tsv | sort -ur > "$TEMP"/GTDB-Tk/summary.tsv
-
 mv "$TEMP"/dRep "$WORKDIR"
-mv "$TEMP"/GTDB-Tk/summary.tsv "$WORKDIR"/dRep
-rm -r "$TEMP"
 
-# We will create a name2taxon file with the lowest taxonomic level available for each genome
-cut -f1 "$WORKDIR"/dRep/summary.tsv > "$WORKDIR"/dRep/genome.tmp
-cut -f2 "$WORKDIR"/dRep/summary.tsv > "$WORKDIR"/dRep/taxon.tmp
+# Now we want to run GTDB-Tk2 on the de-replicated genomes
+# We connect to the server to create a directory and copy the genomes
+ssh -T vetlinux05@pgnsrv043.vu-wien.ac.at << FOO
+
+if [[ ! -d ~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/Genomes ]]
+then  
+    mkdir -p ~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/Genomes
+fi
+
+FOO
+
+scp -r "$WORKDIR"/dRep/dereplicated_genomes/*.fasta \
+        vetlinux05@pgnsrv043.vu-wien.ac.at:~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/Genomes
+
+# We connect to the server again to run GTDB-TK2
+ssh -T vetlinux05@pgnsrv043.vu-wien.ac.at << FOO
+
+cd ~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/
+
+eval \$(conda shell.bash hook)
+conda activate gtdbtk-2.1.1
+
+export GTDBTK_DATA_PATH="/home/vetlinux05/Bosco/db/gtdbtk_r214_database"
+
+gtdbtk classify_wf \
+        --genome_dir ~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/Genomes \
+        -x fasta \
+        --out_dir ~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/output
+
+FOO
+
+# Finally we copy the results and the genomes back to my computer
+scp -r vetlinux05@pgnsrv043.vu-wien.ac.at:~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/output/* "$WORKDIR"/dRep/GTDB-Tk/
+
+
+# Now create a name2taxon file with the lowest taxonomic level available for each genome
+cut -f1 "$WORKDIR"/GTDB-Tk/gtdbtk.bac120.summary.tsv > "$WORKDIR"/dRep/genome.tmp
+cut -f2 "$WORKDIR"/GTDB-Tk/gtdbtk.bac120.summary.tsv > "$WORKDIR"/dRep/taxon.tmp
 
 # This loop removes the unassigned taxonomic levels in each row
 for i in s g f o c p
