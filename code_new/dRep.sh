@@ -64,18 +64,20 @@ mv "$TEMP"/dRep "$WORKDIR"
 mv "$TEMP"/GTDB-Tk/summary.tsv "$WORKDIR"/dRep
 rm -r "$TEMP"
 
-# We will create a name2taxon file with the lowest taxonomic level available
+# We will create a name2taxon file with the lowest taxonomic level available for each genome
 cut -f1 "$WORKDIR"/dRep/summary.tsv > "$WORKDIR"/dRep/genome.tmp
 cut -f2 "$WORKDIR"/dRep/summary.tsv > "$WORKDIR"/dRep/taxon.tmp
 
-# This removes the unassigned taxonomic levels in each row
+# This loop removes the unassigned taxonomic levels in each row
 for i in s g f o c p
 do
     sed -i "" "s/;${i}__\$//g" "$WORKDIR"/dRep/taxon.tmp
 done
 
+# We only leave the last rank for each genome
 rev "$WORKDIR"/dRep/taxon.tmp | cut -d ";" -f1 | rev > "$WORKDIR"/dRep/taxon2.tmp
 
+# Some genomes have the same taxon, so we will add a number to differentiate them
 awk '
 {
     count[$0]++
@@ -85,5 +87,7 @@ awk '
         print $0
     }
 }' "$WORKDIR"/dRep/taxon2.tmp | sed "s/ /\_/g" > "$WORKDIR"/dRep/taxon3.tmp
+
+# We paste the genome and taxon files to create the name2taxon file and remove temporary files
 paste "$WORKDIR"/dRep/genome.tmp "$WORKDIR"/dRep/taxon3.tmp > "$WORKDIR"/dRep/name2taxon.tsv
 rm "$WORKDIR"/dRep/*.tmp
