@@ -36,12 +36,14 @@ then
 fi
 
 # Link the genomes to the genomes folder using the name2taxon table
+IFS=$'\t'
 while read -r name taxon
 do
   cat "$LOCATION_ISOLATES/${name}.fasta" |\
     seqkit seq -m 2000 |\
     seqkit replace -p .+ -r "${taxon}_{nr}" --nr-width 3 > "$GENOMES/${taxon}.fasta"
 done < <(tail -n +2 "$LOCATION_ISOLATES/../name2taxon.tsv")
+unset IFS
 
 # Combine all the genomes
 cat "$GENOMES"/*.fasta > "$GENOMES"/combined.fa
@@ -70,11 +72,11 @@ done
 # Create an index for the reference combined genome
 bowtie2-build --threads 16 "$GENOMES"/combined.fa "$GENOMES"/combined
 
-# Competitive mapping mapping against each of the reads sets
+# Competitive mapping against each of the reads sets
 for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
 do
 
-  name=$(echo "$i" | cut -d "_" -f1,2)
+  name=$(echo "$i" | cut -d "_" -f1)
 
   # Create the results folder
   mkdir -p "$MAPPED"/${name}
