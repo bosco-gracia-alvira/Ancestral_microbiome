@@ -78,8 +78,8 @@ FOO
 scp -r vetlinux05@pgnsrv043.vu-wien.ac.at:~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/output/* "$WORKDIR"/dRep/GTDB-Tk/
 
 # Now create a name2taxon file with the lowest taxonomic level available for each genome
-cut -f1 "$WORKDIR"/GTDB-Tk/gtdbtk.bac120.summary.tsv > "$WORKDIR"/dRep/genome.tmp
-cut -f2 "$WORKDIR"/GTDB-Tk/gtdbtk.bac120.summary.tsv > "$WORKDIR"/dRep/taxon.tmp
+cut -f1 "$WORKDIR"/dRep/GTDB-Tk/gtdbtk.bac120.summary.tsv > "$WORKDIR"/dRep/genome.tmp
+cut -f2 "$WORKDIR"/dRep/GTDB-Tk/gtdbtk.bac120.summary.tsv > "$WORKDIR"/dRep/taxon.tmp
 
 # This loop removes the unassigned taxonomic levels in each row
 for i in s g f o c p
