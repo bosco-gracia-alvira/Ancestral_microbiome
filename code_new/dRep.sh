@@ -68,13 +68,14 @@ export GTDBTK_DATA_PATH="/home/vetlinux05/Bosco/db/gtdbtk_r214_database"
 gtdbtk classify_wf \
         --genome_dir ~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/Genomes \
         -x fasta \
+        --cpus 12 \
+        --pplacer_cpus 12 \
         --out_dir ~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/output
 
 FOO
 
 # Finally we copy the results and the genomes back to my computer
 scp -r vetlinux05@pgnsrv043.vu-wien.ac.at:~/Bosco/Ancestral_microbiome/dRep/GTDB-Tk/output/* "$WORKDIR"/dRep/GTDB-Tk/
-
 
 # Now create a name2taxon file with the lowest taxonomic level available for each genome
 cut -f1 "$WORKDIR"/GTDB-Tk/gtdbtk.bac120.summary.tsv > "$WORKDIR"/dRep/genome.tmp
