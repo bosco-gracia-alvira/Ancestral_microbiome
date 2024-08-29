@@ -84,6 +84,6 @@ awk '
     } else {
         print $0
     }
-}' "$WORKDIR"/dRep/taxon2.tmp > "$WORKDIR"/dRep/taxon3.tmp
+}' "$WORKDIR"/dRep/taxon2.tmp | sed "s/ /\_/g" > "$WORKDIR"/dRep/taxon3.tmp
 paste "$WORKDIR"/dRep/genome.tmp "$WORKDIR"/dRep/taxon3.tmp > "$WORKDIR"/dRep/name2taxon.tsv
 rm "$WORKDIR"/dRep/*.tmp
