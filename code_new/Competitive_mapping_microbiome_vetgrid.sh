@@ -141,12 +141,23 @@ done
 # Remove any previous temporary file
 rm "$WORKDIR"/*.col
 
-# For each of the original genomes we create a temporary file to store the number of reads mapped to it, as well as the sample names
+# For each of the original genomes we create a temporary file to store the number of reads mapped to it, as well as the sample and genome names and sizes
+
 echo -e "Sample" > "$WORKDIR"/sample_name.col
+echo -e "Genome" > "$WORKDIR"/genome_name.col
+echo -e "Size" > "$WORKDIR"/genome_size.col
+
 for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
 do
   echo -e "${j}" > "$WORKDIR"/${j}_reads.col
   echo -e "${j}" > "$WORKDIR"/${j}_uniq.col
+done
+
+for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
+do
+  echo -e "${j}" >> "$WORKDIR"/genome_name.col
+  genome="$GENOMES/${j}.fasta"
+  seqkit stats "$genome" | awk 'NR==2 {print $7}' >> "$WORKDIR"/genome_size.col
 done
 
 # For each sample...
@@ -170,6 +181,7 @@ do
 
 done
 
+paste "$WORKDIR"/genome_name.col "$WORKDIR"/genome_size.col > "$WORKDIR"/genome_size.tsv
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_reads.col > "$WORKDIR"/reads_mapped.tsv
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_uniq.col > "$WORKDIR"/uniq_mapped.tsv
 
