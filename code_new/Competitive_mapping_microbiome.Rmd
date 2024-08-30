@@ -25,15 +25,46 @@ library(gtools)
 # Paths to the files that we want to import
 reads_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/reads_mapped.tsv"
 uniq_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/uniq_mapped.tsv"
+size_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/genome_size.tsv"
 visuals_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/"
 
-coverage <- fread(reads_path)
-
-# Sort the samples alphanumerically
+# Load the coverage, sort the samples alphanumerically and make them row names
+coverage <- fread(reads_path, header=T)
 coverage$Sample <- factor(coverage$Sample , levels = mixedsort(coverage$Sample))
-coverage <- coverage[order(coverage$Sample), ]
+coverage <- as.data.frame(coverage[order(coverage$Sample), ])
+row.names(coverage) <- coverage$Sample
+coverage$Sample <- NULL
+
+# Load genome sizes info, turn genome names into row names, turn the sizes into numbers and transform them to kb
+size <- as.data.frame(fread(size_path))
+row.names(size) <- size$Genome
+size$Genome <- NULL
+size$Size <- gsub(",", "", size$Size)
+size$Size <- as.numeric(size$Size)
+size <- size/1000
 
 ```
+
+```{r Reads normalisation to rpkm}
+
+# Calculate total reads per sample
+total_reads <- as.data.frame(colSums(coverage))
+
+# Calculate RPKM
+coverage_rpkm <- coverage %>%
+  mutate(across(everything(), ~ . / size)) %>%
+  mutate(across(everything(), ~ . / (total_reads / 1e6)))
+
+print(df_rpkm)
+
+
+
+
+```
+
+
+
+
 
 
 
