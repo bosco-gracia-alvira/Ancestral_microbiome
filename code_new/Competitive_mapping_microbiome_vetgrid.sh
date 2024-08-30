@@ -90,7 +90,9 @@ do
     -1 "$RAW_READS"/${name}_1.fq.gz \
     -2 "$RAW_READS"/${name}_2.fq.gz \
     -S "$MAPPED"/${name}/combined.sam \
-    --threads 16 > "$LOGS"/bowtie2_${name}.log 2>&1
+    --threads 16 \
+    --rg-id "${name}" \
+    --rg "SM:${name}" > "$LOGS"/bowtie2_${name}.log 2>&1
 
   # Turn the sam into bam to save memory
   samtools view \
