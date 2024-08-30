@@ -1,0 +1,108 @@
+---
+title: "Competitive_mapping_microbiome"
+author: "Bosco Gracia Alvira"
+date: "2024-08-29"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome")
+knitr::opts_chunk$set(echo = FALSE)
+library(lattice)
+library(data.table)
+library(Biostrings)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(stringr)
+library(gtools)
+
+```
+
+
+```{r Loading the data}
+
+# Paths to the files that we want to import
+reads_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/reads_mapped.tsv"
+uniq_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/uniq_mapped.tsv"
+visuals_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/"
+
+coverage <- fread(reads_path)
+
+# Sort the samples alphanumerically
+coverage$Sample <- factor(coverage$Sample , levels = mixedsort(coverage$Sample))
+coverage <- coverage[order(coverage$Sample), ]
+
+```
+
+
+
+```{r Relative abundance calculation}
+
+# We have measures of absolute abundance of each taxon. We transform it to relative abundance.
+coverage_rel <- coverage %>%
+  rowwise() %>%
+  mutate(across(everything(), ~ . / sum(c_across(everything())), .names = "{col}")) %>%
+  ungroup()
+
+```
+
+
+
+```{r Trajectory over the time}
+
+# Melt the data to long format
+df_long <- reshape2::melt(coverage_rel, id.vars = c("Sample","Total"))
+
+# Based on the sample name, we create two new columns: Generation and Replicate
+df_long <- df_long %>%
+  mutate(
+    generation = as.numeric(str_extract(Sample, "(?<=F)\\d+(?=_)")),
+    temperature = case_when(
+      str_detect(Sample, "h") ~ "hot",
+      str_detect(Sample, "c") ~ "cold")
+  )
+
+
+
+
+
+df_long$list <- paste0(df_long$temperature,df_long$replicate)
+
+# The table has information from 20 different time series. We create a list in which each series is an element.
+df_list <- split(df_long, df_long$list)
+df_list <- df_list[names(df_list) != "isolateNA"]
+plot_list <- list()
+
+# We iterate to create a ggplot object for each series
+for(i in seq_along(df_list)) {
+  # Create a plot for each data frame
+ p <- ggplot(df_list[[i]], aes(x = generation, y = value, fill = variable)) +
+    geom_area() +
+    ylab("Strain relative Abundance") +
+    scale_fill_manual(values = c("S239_uniq" = "red", "S103_uniq" = "lightblue", "B89_uniq" = "grey")) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    xlab("Generation") +
+    labs(fill = "Genotype", title = paste("Sample", names(df_list)[i]))
+  
+  if (grepl("hot", names(df_list)[i])) {
+    p <- p +
+      geom_vline(xintercept = 175, colour = "darkred", linetype = "dashed") +
+      geom_vline(xintercept = 263, colour = "darkred", linetype = "dashed")
+  } else if (grepl("cold", names(df_list)[i])) {
+    p <- p +
+      geom_vline(xintercept = 89, colour = "darkblue", linetype = "dashed")
+  }
+  
+   p
+   ggsave(filename = paste0(visuals_path,"Lpla_3strains_bbmap_",names(df_list)[i],".png"), width = 6, height = 4, dpi = 300)
+  
+  # Store the plot in the list
+  plot_list[[i]] <- p
+}
+
+for(p in plot_list) {
+  print(p)
+}
+
+```
