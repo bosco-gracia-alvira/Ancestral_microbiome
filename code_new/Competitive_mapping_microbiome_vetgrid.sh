@@ -150,7 +150,7 @@ do
 done
 
 # For each sample...
-for i in $(basename -a "$RAW_READS"/*_1.fq.gz | cut -d "_" -f1,2)
+for i in $(basename -a "$RAW_READS"/*_1.fq.gz | cut -d "_" -f1)
 do
 
   # Add the sample name to the file "sample_name.tmp"
