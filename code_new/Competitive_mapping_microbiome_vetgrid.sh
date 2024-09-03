@@ -84,10 +84,14 @@ done
 bowtie2-build --threads 16 "$GENOMES"/combined.fa "$GENOMES"/combined
 
 # Competitive mapping against each of the reads sets
+numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
+echo -e "Starting competitive mapping of ${numsamples} samples"
+
 for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
 do
-
+  
   name=$(echo "$i" | cut -d "_" -f1)
+  echo -e "Mapping sample ${name}"
 
   # Create the results folder
   mkdir -p "$MAPPED"/${name}
@@ -151,6 +155,8 @@ done
 # Number of reads mapped to each genome
 # Number of reads mapped UNIQUELY to each genome
 
+echo -e "Calculating reads mapped to each genome"
+
 # Remove any previous temporary file
 rm "$WORKDIR"/*.col
 
@@ -199,3 +205,5 @@ paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_reads.col > "$WORKDIR"/reads_mappe
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_uniq.col > "$WORKDIR"/uniq_mapped.tsv
 
 rm "$WORKDIR"/*.col
+
+echo -e "Mapping finished"
