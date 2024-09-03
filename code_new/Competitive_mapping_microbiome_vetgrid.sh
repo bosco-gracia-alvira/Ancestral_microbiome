@@ -71,6 +71,7 @@ do
 done
 
 # Create a file linking all the isolate genomes and the location of their reads
+# THIS DOES NOT WORK IN THE SCRIPT, JUST IF YOU RUN IT IN THE TERMINAL
 for i in $(ls "$LOCATION_ISOLATES"/Pool_???/02.Rm_adapters/fastq_clean/*.clean_1.fq.gz)
 do
   sample=$(echo "${i}" | cut -d "/" -f12 | cut -d "." -f1)
