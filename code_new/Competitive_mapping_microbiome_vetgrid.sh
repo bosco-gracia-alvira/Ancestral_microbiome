@@ -7,6 +7,7 @@
 # Set the paths
 LOCATION_COLD="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_cold"
 LOCATION_HOT="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_hot"
+LOCATION_ISOLATES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly"
 LOCATION_REFERENCES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/dRep/dereplicated_genomes"
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome"
 RAW_READS="$WORKDIR/reads"
@@ -15,6 +16,10 @@ LOGS="$WORKDIR/logs"
 MAPPED="$WORKDIR/mapped"
 
 ### COMMANDS
+
+# Print the current shell
+echo "Current shell: $SHELL"
+
 IFS="
 "
 
@@ -66,7 +71,7 @@ do
 done
 
 # Create a file linking all the isolate genomes and the location of their reads
-for i in $(ls /Volumes/Data/PopGen\ Dropbox/Martin\ McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_???/02.Rm_adapters/fastq_clean/*.clean_1.fq.gz)
+for i in $(ls "$LOCATION_ISOLATES"/Pool_???/02.Rm_adapters/fastq_clean/*.clean_1.fq.gz)
 do
   sample=$(echo "${i}" | cut -d "/" -f12 | cut -d "." -f1)
   ln -sf "${i}" "$RAW_READS"/i${sample}_1.fq.gz
