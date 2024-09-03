@@ -1,5 +1,5 @@
 #!/bin/bash
-# This script maps competitively the reads from all the poolseqs against the collection of de-replicated genomes.
+# This script maps competitively the reads from all the poolseqs and isolate genomes against the collection of de-replicated genomes.
 # Bosco Gracia Alvira, 2024
 
 ### VARIABLES
@@ -7,8 +7,7 @@
 # Set the paths
 LOCATION_COLD="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_cold"
 LOCATION_HOT="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_hot"
-LOCATION_ISOLATES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/dRep/dereplicated_genomes"
-
+LOCATION_REFERENCES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/dRep/dereplicated_genomes"
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome"
 RAW_READS="$WORKDIR/reads"
 GENOMES="$WORKDIR/genomes"
@@ -39,10 +38,10 @@ fi
 IFS=$'\t'
 while read -r name taxon
 do
-  cat "$LOCATION_ISOLATES/${name}.fasta" |\
+  cat "$LOCATION_REFERENCES/${name}.fasta" |\
     seqkit seq -m 2000 |\
     seqkit replace -p .+ -r "${taxon}_{nr}" --nr-width 3 > "$GENOMES/${taxon}.fasta"
-done < <(tail -n +2 "$LOCATION_ISOLATES/../name2taxon.tsv")
+done < <(tail -n +2 "$LOCATION_REFERENCES/../name2taxon.tsv")
 unset IFS
 
 # Combine all the genomes
@@ -56,16 +55,23 @@ fi
 
 for i in $(basename "$LOCATION_HOT"/F*)
 do
-  ln -s "$LOCATION_HOT"/F*/Pooled_${i}_Clean_noCont_1.fq.gz "$RAW_READS"/h${i}_1.fq.gz
-  ln -s "$LOCATION_HOT"/F*/Pooled_${i}_Clean_noCont_2.fq.gz "$RAW_READS"/h${i}_2.fq.gz
+  ln -sf "$LOCATION_HOT"/F*/Pooled_${i}_Clean_noCont_1.fq.gz "$RAW_READS"/h${i}_1.fq.gz
+  ln -sf "$LOCATION_HOT"/F*/Pooled_${i}_Clean_noCont_2.fq.gz "$RAW_READS"/h${i}_2.fq.gz
 done
 
 for i in $(basename "$LOCATION_COLD"/F*)
 do
-  ln -s "$LOCATION_COLD"/F*/Pooled_${i}_Clean_noCont_1.fq.gz "$RAW_READS"/c${i}_1.fq.gz
-  ln -s "$LOCATION_COLD"/F*/Pooled_${i}_Clean_noCont_2.fq.gz "$RAW_READS"/c${i}_2.fq.gz
+  ln -sf "$LOCATION_COLD"/F*/Pooled_${i}_Clean_noCont_1.fq.gz "$RAW_READS"/c${i}_1.fq.gz
+  ln -sf "$LOCATION_COLD"/F*/Pooled_${i}_Clean_noCont_2.fq.gz "$RAW_READS"/c${i}_2.fq.gz
 done
 
+# Create a file linking all the isolate genomes and the location of their reads
+for i in $(ls /Volumes/Data/PopGen\ Dropbox/Martin\ McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_???/02.Rm_adapters/fastq_clean/*.clean_1.fq.gz)
+do
+  sample=$(echo "${i}" | cut -d "/" -f12 | cut -d "." -f1)
+  ln -sf "${i}" "$RAW_READS"/i${sample}_1.fq.gz
+  ln -sf "${i%_1.fq.gz}_2.fq.gz" "$RAW_READS"/i${sample}_2.fq.gz
+done
 
 ### Competetive reads mapping to the representative microbiome and extraction of the unmapped reads
 
