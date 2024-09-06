@@ -40,6 +40,7 @@ then
 fi
 
 # Link the genomes to the genomes folder using the name2taxon table
+echo -e "Linking the genomes to the genomes folder"
 IFS=$'\t'
 while read -r name taxon
 do
@@ -50,9 +51,11 @@ done < <(tail -n +2 "$LOCATION_REFERENCES/../name2taxon.tsv")
 unset IFS
 
 # Combine all the genomes
+echo -e "Combining all the genomes"
 cat "$GENOMES"/*.fasta > "$GENOMES"/combined.fa
 
 # We create the raw reads folder and link the poolseqs to it
+echo -e "Linking the reads to the raw reads folder"
 if [[ ! -d "$RAW_READS" ]]
 then
   mkdir "$RAW_READS"
@@ -72,8 +75,13 @@ done
 
 # Create a file linking all the isolate genomes and the location of their reads
 # THIS DOES NOT WORK IN THE SCRIPT, JUST IF YOU RUN IT IN THE TERMINAL
-for i in $(ls "$LOCATION_ISOLATES"/Pool_???/02.Rm_adapters/fastq_clean/*.clean_1.fq.gz)
+for i in "$LOCATION_ISOLATES"/Pool_???/02.Rm_adapters/fastq_clean/*.clean_1.fq.gz
 do
+  pool=$(echo "${i}" | cut -d "/" -f9 | cut -d "_" -f2)
+  if [[ $pool == 589 ]]
+  then
+    continue
+  fi
   sample=$(echo "${i}" | cut -d "/" -f12 | cut -d "." -f1)
   ln -sf "${i}" "$RAW_READS"/i${sample}_1.fq.gz
   ln -sf "${i%_1.fq.gz}_2.fq.gz" "$RAW_READS"/i${sample}_2.fq.gz
