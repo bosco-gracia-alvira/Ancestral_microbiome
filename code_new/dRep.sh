@@ -104,3 +104,13 @@ awk '
 # We paste the genome and taxon files to create the name2taxon file and remove temporary files
 paste "$WORKDIR"/dRep/genome.tmp "$WORKDIR"/dRep/taxon3.tmp > "$WORKDIR"/dRep/name2taxon.tsv
 rm "$WORKDIR"/dRep/*.tmp
+
+# Now we will create a phylogenetic tree with the de-replicated genomes
+# GTDB-Tk has already concatenated and aligned 120 marker proteins for all the genomes
+gzcat "$WORKDIR"/dRep/GTDB-Tk/align/gtdbtk.bac120.user_msa.fasta.gz > "$WORKDIR"/dRep/GTDB-Tk/align/gtdbtk.bac120.user_msa.faa
+
+iqtree2 \
+    -s "$WORKDIR"/dRep/GTDB-Tk/align/gtdbtk.bac120.user_msa.faa \
+    --seqtype AA \
+    --runs 10 \
+    -T 12
