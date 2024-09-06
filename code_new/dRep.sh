@@ -105,12 +105,21 @@ awk '
 paste "$WORKDIR"/dRep/genome.tmp "$WORKDIR"/dRep/taxon3.tmp > "$WORKDIR"/dRep/name2taxon.tsv
 rm "$WORKDIR"/dRep/*.tmp
 
-# Now we will create a phylogenetic tree with the de-replicated genomes
+# Now we will create a phylogenetic tree of the de-replicated genomes
 # GTDB-Tk has already concatenated and aligned 120 marker proteins for all the genomes
-gzcat "$WORKDIR"/dRep/GTDB-Tk/align/gtdbtk.bac120.user_msa.fasta.gz > "$WORKDIR"/dRep/GTDB-Tk/align/gtdbtk.bac120.user_msa.faa
+
+mkdir "$WORKDIR"/dRep/phylotree
+gzcat "$WORKDIR"/dRep/GTDB-Tk/align/gtdbtk.bac120.user_msa.fasta.gz > "$WORKDIR"/dRep/phylotree/taxa_msa.faa
+
+while IFS=$'\t' read -r name taxon
+do
+    sed -i "" "s/>${name}$/>${taxon}$/g" "$WORKDIR"/dRep/phylotree/taxa_msa.faa
+done < "$WORKDIR/dRep/name2taxon.tsv"
 
 iqtree2 \
-    -s "$WORKDIR"/dRep/GTDB-Tk/align/gtdbtk.bac120.user_msa.faa \
+    -s "$WORKDIR"/dRep/phylotree/taxa_msa.faa \
     --seqtype AA \
-    --runs 10 \
-    -T 12
+    --runs 1 \
+    --prefix "$WORKDIR"/dRep/phylotree/taxa_msa \
+    -redo \
+    -T 16
