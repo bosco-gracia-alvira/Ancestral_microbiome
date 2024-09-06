@@ -16,6 +16,7 @@ library(dplyr)
 library(tidyverse)
 library(stringr)
 library(gtools)
+library(pheatmap)
 
 ```
 
@@ -29,104 +30,143 @@ size_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microb
 visuals_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/"
 
 # Load the coverage, sort the samples alphanumerically and make them row names
-coverage <- fread(reads_path, header=T)
+coverage <- fread(uniq_path, header=T)
 coverage$Sample <- factor(coverage$Sample , levels = mixedsort(coverage$Sample))
 coverage <- as.data.frame(coverage[order(coverage$Sample), ])
 row.names(coverage) <- coverage$Sample
 coverage$Sample <- NULL
+coverage <- as.data.frame(t(coverage))
 
 # Load genome sizes info, turn genome names into row names, turn the sizes into numbers and transform them to kb
 size <- as.data.frame(fread(size_path))
-row.names(size) <- size$Genome
-size$Genome <- NULL
 size$Size <- gsub(",", "", size$Size)
 size$Size <- as.numeric(size$Size)
-size <- size/1000
-
-```
-
-```{r Reads normalisation to rpkm}
-
-# Calculate total reads per sample
-total_reads <- as.data.frame(colSums(coverage))
-
-# Calculate RPKM
-coverage_rpkm <- coverage %>%
-  mutate(across(everything(), ~ . / size)) %>%
-  mutate(across(everything(), ~ . / (total_reads / 1e6)))
-
-print(df_rpkm)
-
-
-
+size_vec <- as.vector(size[, 2])
 
 ```
 
 
+```{r Reads normalisation to tpm}
 
+# We normalise the data using tpm
 
+# First we divide the number of reads mapped to each genome by the genome size, and multiply by 1000 (kb)
+size_norm <- sweep(coverage, 1, size_vec, FUN = "/") * 1e3
 
+# Counts normalised by genome size are then multiplied by 10^6 and divided by the total number of reads in each sample
+tpm <- as.data.frame(t(t(size_norm)*1e6/ colSums(size_norm)))
 
-
-```{r Relative abundance calculation}
-
-# We have measures of absolute abundance of each taxon. We transform it to relative abundance.
-coverage_rel <- coverage %>%
-  rowwise() %>%
-  mutate(across(everything(), ~ . / sum(c_across(everything())), .names = "{col}")) %>%
-  ungroup()
+# As a result, all columns (samples) add up to 10^6, regardless of their coverage
+colSums(tpm)
 
 ```
+
+
+```{r Data subsets}
+
+# We divide the table into isolates and pools columns
+
+# Subset columns that start with "i"
+tpm_i <- tpm %>% select(starts_with("i"))
+tpm_i <- rownames_to_column(tpm_i, var = "Taxon")
+
+# Subset columns that do not start with "i"
+tpm_pools <- tpm %>% select(-starts_with("i"))
+tpm_pools <- rownames_to_column(tpm_pools, var = "Taxon")
+
+# Melt the dataframe to long format
+tpm_i_long <- reshape2::melt(tpm_i, id.vars = "Taxon", variable.name = "Sample", value.name = "TPM")
+tpm_pools_long <- reshape2::melt(tpm_pools, id.vars = "Taxon", variable.name = "Sample", value.name = "TPM")
+
+# Based on the sample name, we create two new columns: Generation and Temperature
+tpm_i_long <- tpm_i_long %>%
+  mutate(
+    generation = as.numeric(str_extract(Sample, "(?<=F)\\d+")),
+    temperature = case_when(
+      str_detect(Sample, "h") ~ "hot",
+      str_detect(Sample, "c") ~ "cold",
+      str_detect(Sample, "i") ~ "isolate")
+  )
+
+tpm_pools_long <- tpm_pools_long %>%
+  mutate(
+    generation = as.numeric(str_extract(Sample, "(?<=F)\\d+")),
+    temperature = case_when(
+      str_detect(Sample, "h") ~ "hot",
+      str_detect(Sample, "c") ~ "cold",
+      str_detect(Sample, "i") ~ "isolate")
+  )
+
+# Plot the distribution of counts
+ggplot(tpm_i_long, aes(x = TPM)) +
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Distribution of TPM Counts", x = "TPM", y = "Frequency")
+
+# How many elements have less than 10000 reads?
+tpm_i_long %>% filter(TPM < 10000) %>% nrow()
+nrow(tpm_i_long)
+
+# Plot the distribution of counts
+ggplot(tpm_pools_long, aes(x = TPM)) +
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Distribution of TPM Counts", x = "TPM", y = "Frequency")
+
+# How many elements have less than 10000 TPMs in the pools?
+tpm_pools_long %>% filter(TPM < 10000) %>% nrow()
+nrow(tpm_pools_long)
+
+```
+
+```{r Merge low abundance taxa}
+
+# How many taxa have less than 10000 TPMs in ALL the samples (less than 1% abundance)?
+# We extract the names of these taxa
+sum(apply(tpm_pools[,-1], 1, function(row) all(row < 10000)))
+oder_taxa <- apply(tpm_pools[,-1], 1, function(row) all(row < 10000))
+oder_taxa <- tpm_pools[oder_taxa, 1]
+
+tpm_pools_long$Taxon <- ifelse(tpm_pools_long$Taxon %in% oder_taxa, "others", tpm_pools_long$Taxon)
+tpm_pools_long <- aggregate(TPM ~ Sample + Taxon + generation + temperature, data = tpm_pools_long, sum)
+
+```
+
+```{r Set the order and the colour for the taxa}
+
+
+
+
+
+
+
+```
+
+
+
+
 
 
 
 ```{r Trajectory over the time}
 
-# Melt the data to long format
-df_long <- reshape2::melt(coverage_rel, id.vars = c("Sample","Total"))
-
-# Based on the sample name, we create two new columns: Generation and Replicate
-df_long <- df_long %>%
-  mutate(
-    generation = as.numeric(str_extract(Sample, "(?<=F)\\d+(?=_)")),
-    temperature = case_when(
-      str_detect(Sample, "h") ~ "hot",
-      str_detect(Sample, "c") ~ "cold")
-  )
-
-
-
-
-
-df_long$list <- paste0(df_long$temperature,df_long$replicate)
-
-# The table has information from 20 different time series. We create a list in which each series is an element.
-df_list <- split(df_long, df_long$list)
-df_list <- df_list[names(df_list) != "isolateNA"]
+# The table has information from 2 temperature time series. We create a list in which each series is an element.
+tpm_list <- split(tpm_pools_long, tpm_pools_long$temperature)
+tpm_list <- tpm_list[names(tpm_list) != "isolateNA"]
 plot_list <- list()
 
 # We iterate to create a ggplot object for each series
-for(i in seq_along(df_list)) {
+for(i in seq_along(tpm_list)) {
   # Create a plot for each data frame
- p <- ggplot(df_list[[i]], aes(x = generation, y = value, fill = variable)) +
+ p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Taxon)) +
     geom_area() +
-    ylab("Strain relative Abundance") +
-    scale_fill_manual(values = c("S239_uniq" = "red", "S103_uniq" = "lightblue", "B89_uniq" = "grey")) +
+    ylab("Taxon relative Abundance") +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     xlab("Generation") +
-    labs(fill = "Genotype", title = paste("Sample", names(df_list)[i]))
-  
-  if (grepl("hot", names(df_list)[i])) {
-    p <- p +
-      geom_vline(xintercept = 175, colour = "darkred", linetype = "dashed") +
-      geom_vline(xintercept = 263, colour = "darkred", linetype = "dashed")
-  } else if (grepl("cold", names(df_list)[i])) {
-    p <- p +
-      geom_vline(xintercept = 89, colour = "darkblue", linetype = "dashed")
-  }
+    labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
   
    p
-   ggsave(filename = paste0(visuals_path,"Lpla_3strains_bbmap_",names(df_list)[i],".png"), width = 6, height = 4, dpi = 300)
+   #ggsave(filename = paste0(visuals_path,"Lpla_3strains_bbmap_",names(df_list)[i],".png"), width = 6, height = 4, dpi = 300)
   
   # Store the plot in the list
   plot_list[[i]] <- p
