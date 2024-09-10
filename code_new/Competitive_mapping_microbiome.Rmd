@@ -124,22 +124,125 @@ nrow(tpm_pools_long)
 # How many taxa have less than 10000 TPMs in ALL the samples (less than 1% abundance)?
 # We extract the names of these taxa
 sum(apply(tpm_pools[,-1], 1, function(row) all(row < 10000)))
-oder_taxa <- apply(tpm_pools[,-1], 1, function(row) all(row < 10000))
-oder_taxa <- tpm_pools[oder_taxa, 1]
+other_taxa <- apply(tpm_pools[,-1], 1, function(row) all(row < 10000))
+other_taxa <- tpm_pools[other_taxa, 1]
 
-tpm_pools_long$Taxon <- ifelse(tpm_pools_long$Taxon %in% oder_taxa, "others", tpm_pools_long$Taxon)
+tpm_pools_long$Taxon <- ifelse(tpm_pools_long$Taxon %in% other_taxa, "Other", tpm_pools_long$Taxon)
 tpm_pools_long <- aggregate(TPM ~ Sample + Taxon + generation + temperature, data = tpm_pools_long, sum)
 
 ```
 
-```{r Set the order and the colour for the taxa}
+```{r Taxons order and colour, message=FALSE, warning=FALSE}
+# Here we set the order in which we want the taxons to appear.
+Amplicon_level <- c("Other",
+                    "Corynebacteriales",
+                    "Chloroplast",
+                    "Lactobacillales",
+                    "Chitinophagales",
+                    "Orbales",
+                    "Enterobacterales",
+                    "ASV_7",
+                    "ASV_5",
+                    "ASV_4",
+                    "ASV_2",
+                    "ASV_15")
+
+taxon_levels <- c("Other",
+                  "o_Borreliales",
+                  "s_Corynebacterium_provencense",
+                  "s_Corynebacterium_nuruki",
+                  "g_Enteroccus",
+                  "s_Enterococcus_faecalis",
+                  "s_Leuconostoc_pseudomesenteroides",
+                  "s_Levilactobacillus_brevis",
+                  "s_Lactiplantibacillus_paracasei",
+                  "s_Lactiplantibacillus_plantarum",
+                  "g_Chitinophaga",
+                  "f_Enterobacteriaceae_3",
+                  "f_Enterobacteriaceae_2",
+                  "f_Enterobacteriaceae_1",
+                  "f_Enterobacteriaceae",
+                  "s_Morganella_morganii",
+                  "s_Acetobacter_indonesiensis_3",
+                  "s_Acetobacter_indonesiensis_2",
+                  "s_Acetobacter_indonesiensis_1",
+                  "s_Acetobacter_sicerae",
+                  "s_Acetobacter_oryzifermentans",
+                  "g_Acetobacter")
+
+# Here we choose the colour 
+Amplicon_colours <- c("#E69F00", #12
+                      "#0072B2", #11
+                      "#D55E00", #10
+                      "#FF3030", #9
+                      "#CC79A7", #8
+                      "#56B4E9", #7
+                      "#F0E442", #6
+                      "#458B00", #5
+                      "#00CDCD", #4
+                      "#68228B", #3
+                      "#FF1493", #2
+                      "#FFD700") #1
 
 
+Abundance_colours <- c("#E69F00", #12
+                       "#0072B2", #11
+                       "#0072B2", #11
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#CC79A7", #8
+                       "#56B4E9", #7
+                       "#56B4E9", #7
+                       "#F0E442", #6
+                       "#F0E442", #6
+                       "#458B00", #5
+                       "#458B00", #5
+                       "#458B00", #5
+                       "#00CDCD", #4
+                       "#68228B", #3 
+                       "#68228B") #3
 
 
+# This palette clusters the taxa by colour
+
+Amplicon_colours <- c("#E69F00", #12
+                      "#FFF0F5", #11
+                      "#D55E00", #10
+                      "#FF3030", #9
+                      "#CC79A7", #8
+                      "#6B8E23", #7
+                      "#B3EE3A", #6
+                      "#00CDCD", #5
+                      "#00F5FF", #4
+                      "#B2DFEE", #3
+                      "#27408B", #2
+                      "#63B8FF") #1
 
 
-
+Abundance_colours <- c("#E69F00", #12
+                       "#FFF0F5", #11
+                       "#FFF0F5", #11
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#FF3030", #10
+                       "#CC79A7", #8
+                       "#6B8E23", #7
+                       "#6B8E23", #7
+                       "#B3EE3A", #6
+                       "#B3EE3A", #6
+                       "#00CDCD", #5
+                       "#00CDCD", #5
+                       "#00CDCD", #5
+                       "#00F5FF", #4
+                       "#B2DFEE", #3  
+                       "#B2DFEE") #3
 ```
 
 
