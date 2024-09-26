@@ -20,9 +20,10 @@ fi
 ln -s "$ISOLATES"/*.fasta "$WORKDIR"/Graph_pangenome/Genomes
 ln -s "$MAGS"/*MAG*.fasta "$WORKDIR"/Graph_pangenome/Genomes
 
-# Compile the taxonomy of all the available taxa
+# Compile the taxonomy of all the available good quality taxa (not the metagenomic bins, only the MAGs)
 cat "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/taxonomy.tsv" > "$WORKDIR"/Graph_pangenome/taxonomy.tsv
-tail -n +2 "$WORKDIR"/GTDB-Tk/output/gtdbtk.bac120.summary.tsv >> "$WORKDIR"/Graph_pangenome/taxonomy.tsv
+tail -n +2 "$WORKDIR"/GTDB-Tk/output/gtdbtk.bac120.summary.tsv |\
+  grep -v "_Bin_" >> "$WORKDIR"/Graph_pangenome/taxonomy.tsv
 TAXONOMY="$WORKDIR/Graph_pangenome/taxonomy.tsv"
 
 # List the number of taxa available
