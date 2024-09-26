@@ -17,8 +17,8 @@ then
 fi
 
 # Link the genomes to the Genomes directory
-ln -s "$ISOLATES"/*.fasta "$WORKDIR"/Graph_pangenome/Genomes
-ln -s "$MAGS"/*MAG*.fasta "$WORKDIR"/Graph_pangenome/Genomes
+cp "$ISOLATES"/*.fasta "$WORKDIR"/Graph_pangenome/Genomes
+cp "$MAGS"/*MAG*.fasta "$WORKDIR"/Graph_pangenome/Genomes
 
 # Compile the taxonomy of all the available good quality taxa (not the metagenomic bins, only the MAGs)
 cat "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/taxonomy.tsv" > "$WORKDIR"/Graph_pangenome/taxonomy.tsv
