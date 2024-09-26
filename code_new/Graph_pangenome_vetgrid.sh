@@ -80,6 +80,8 @@ FOO
 
     cd ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$sp"
 
+    echo "Making pangenome for $sp"
+
     SuperPang.py \
             --fasta ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$sp"/Genomes/*.fasta \
             --assume-complete \
