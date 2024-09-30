@@ -46,6 +46,7 @@ do
 
     echo "There is only one genome available for the species $sp. Using this lonely genome as species reference."
 
+    mkdir -p "$WORKDIR/Graph_pangenome/$sp"
     rsync -av \
           "$WORKDIR/Graph_pangenome/Genomes/$SAMPLES.fasta" \
           "$WORKDIR/Graph_pangenome/$sp/$sp.fasta"
