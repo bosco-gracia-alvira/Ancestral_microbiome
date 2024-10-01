@@ -1,5 +1,5 @@
 #!/bin/bash
-# This script creates a graph pangenome from all the isolates assigned to one species
+# This script creates a graph pangenome from all the isolates assigned to a taxon by GTDB-Tk
 # Bosco Gracia Alvira, 2024
 
 ### VARIABLES
