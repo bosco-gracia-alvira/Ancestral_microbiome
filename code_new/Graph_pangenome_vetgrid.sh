@@ -63,7 +63,9 @@ do
   if [ "$count" -eq 1 ]
   then
 
-    echo "There is only one genome available for the species $sp. Using this lonely genome as species reference."
+    echo "
+    There is only one genome available for the species $sp. Using this lonely genome as species reference.
+    "
 
     mkdir -p "$WORKDIR/Graph_pangenome/$sp"
     rsync -av \
@@ -100,7 +102,9 @@ FOO
 
     cd ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$sp"
 
-    echo "Making pangenome for $sp"
+    echo "
+          Making pangenome for $sp
+          "
 
     SuperPang.py \
             --fasta ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$sp"/Genomes/*.fasta \
