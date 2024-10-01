@@ -48,15 +48,6 @@ do
     seqkit replace -p .+ -r "${i}_{nr}" --nr-width 3 > "$GENOMES/${i}.fasta"
 done
 
-# IFS=$'\t'
-# while read -r name taxon
-# do
-#   cat "$LOCATION_REFERENCES/${taxon}/${taxon}.fasta" |\
-#     seqkit seq -m 2000 |\
-#     seqkit replace -p .+ -r "${taxon}_{nr}" --nr-width 3 > "$GENOMES/${taxon}.fasta"
-# done < <(tail -n +2 "$LOCATION_REFERENCES/../name2taxon.tsv")
-# unset IFS
-
 # Combine all the genomes
 echo -e "Combining all the pangenomes"
 cat "$GENOMES"/*.fasta > "$GENOMES"/combined.fa
