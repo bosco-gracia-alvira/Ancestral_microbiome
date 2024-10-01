@@ -38,6 +38,8 @@ done
 
 # We only leave the last rank for each genome
 rev "$WORKDIR"/Graph_pangenome/taxon.tmp | cut -d ";" -f1 | rev > "$WORKDIR"/Graph_pangenome/taxon2.tmp
+# Remove the space between genus and species, when there is one
+sed -i "" "s/ /_/g" "$WORKDIR"/Graph_pangenome/taxon2.tmp
 
 # We paste the genome and taxon files to create the name2taxon file and remove temporary files
 paste \
@@ -47,13 +49,13 @@ rm "$WORKDIR"/Graph_pangenome/*.tmp
 
 # List the number of taxa available
 TAXON_LIST=$(cut -f2 "$WORKDIR"/Graph_pangenome/name2taxon.tsv | grep "__" | sort | uniq -c | sort -r | sed 's/^ *//')
-i="1 o__Borreliales"
+
 echo "$TAXON_LIST" | while read -r i
 do
   IFS=$'\n'
   # Number of genomes available for the given species
   count=$(echo "$i" | cut -d " " -f 1)
-  # Species name (when available)
+  # Taxon name
   sp=$(echo "$i" | cut -d " " -f 2)
   # Name of the samples belonging to that species
   SAMPLES=$(awk -v s="$sp" -F "\t" '$2 ~ s {print $1}' "$WORKDIR"/Graph_pangenome/name2taxon.tsv | grep -v "user")
