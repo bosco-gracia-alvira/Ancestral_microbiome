@@ -8,7 +8,7 @@
 LOCATION_COLD="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_cold"
 LOCATION_HOT="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_hot"
 LOCATION_ISOLATES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly"
-LOCATION_REFERENCES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/dRep/dereplicated_genomes"
+LOCATION_REFERENCES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Graph_pangenome"
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome"
 RAW_READS="$WORKDIR/reads"
 GENOMES="$WORKDIR/genomes"
@@ -20,8 +20,7 @@ MAPPED="$WORKDIR/mapped"
 # Print the current shell
 echo "Current shell: $SHELL"
 
-IFS="
-"
+IFS=$'\n'
 
 if [[ ! -d "$MAPPED" ]]
 then
@@ -39,19 +38,27 @@ then
   mkdir "$GENOMES"
 fi
 
-# Link the genomes to the genomes folder using the name2taxon table
-echo -e "Linking the genomes to the genomes folder"
-IFS=$'\t'
-while read -r name taxon
+# Copying the genomes to the genomes folder using the name2taxon table
+echo -e "Copying the reference pangenomes to the genomes folder"
+for i in $(basename "$LOCATION_REFERENCES"/*__*)
 do
-  cat "$LOCATION_REFERENCES/${name}.fasta" |\
+  echo "${i}"
+  cat "$LOCATION_REFERENCES/${i}/${i}.fasta" |\
     seqkit seq -m 2000 |\
-    seqkit replace -p .+ -r "${taxon}_{nr}" --nr-width 3 > "$GENOMES/${taxon}.fasta"
-done < <(tail -n +2 "$LOCATION_REFERENCES/../name2taxon.tsv")
-unset IFS
+    seqkit replace -p .+ -r "${i}_{nr}" --nr-width 3 > "$GENOMES/${i}.fasta"
+done
+
+# IFS=$'\t'
+# while read -r name taxon
+# do
+#   cat "$LOCATION_REFERENCES/${taxon}/${taxon}.fasta" |\
+#     seqkit seq -m 2000 |\
+#     seqkit replace -p .+ -r "${taxon}_{nr}" --nr-width 3 > "$GENOMES/${taxon}.fasta"
+# done < <(tail -n +2 "$LOCATION_REFERENCES/../name2taxon.tsv")
+# unset IFS
 
 # Combine all the genomes
-echo -e "Combining all the genomes"
+echo -e "Combining all the pangenomes"
 cat "$GENOMES"/*.fasta > "$GENOMES"/combined.fa
 
 # We create the raw reads folder and link the poolseqs to it
@@ -78,7 +85,7 @@ done
 for i in "$LOCATION_ISOLATES"/Pool_???/02.Rm_adapters/fastq_clean/*.clean_1.fq.gz
 do
   pool=$(echo "${i}" | cut -d "/" -f9 | cut -d "_" -f2)
-  if [[ $pool == 589 ]]
+  if [[ $pool == 589 ]] # We exclude pool 589
   then
     continue
   fi
@@ -167,7 +174,7 @@ done
 echo -e "Calculating reads mapped to each genome"
 
 # Remove any previous temporary file
-rm "$WORKDIR"/*.col
+rm -r "$WORKDIR"/*.col
 
 # For each of the original genomes we create a temporary file to store the number of reads mapped to it, as well as the sample and genome names and sizes
 
