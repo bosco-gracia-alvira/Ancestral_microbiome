@@ -26,20 +26,37 @@ tail -n +2 "$WORKDIR"/GTDB-Tk/output/gtdbtk.bac120.summary.tsv |\
   grep -v "_Bin_" >> "$WORKDIR"/Graph_pangenome/taxonomy.tsv
 TAXONOMY="$WORKDIR/Graph_pangenome/taxonomy.tsv"
 
-# List the number of taxa available
-TAXON_LIST=$(cut -f2 "$TAXONOMY" | awk -F 's__' '{print $2}' | grep " " | sed 's/ /_/' | sort | uniq -c | sort -r | sed 's/^ *//')
+# Now create a name2taxon file with the lowest taxonomic level available for each genome
+cut -f1 "$TAXONOMY" > "$WORKDIR"/Graph_pangenome/genome.tmp
+cut -f2 "$TAXONOMY" > "$WORKDIR"/Graph_pangenome/taxon.tmp
 
+# This loop removes the unassigned taxonomic levels in each row
+for i in s g f o c p
+do
+    sed -i "" "s/;${i}__\$//g" "$WORKDIR"/Graph_pangenome/taxon.tmp
+done
+
+# We only leave the last rank for each genome
+rev "$WORKDIR"/Graph_pangenome/taxon.tmp | cut -d ";" -f1 | rev > "$WORKDIR"/Graph_pangenome/taxon2.tmp
+
+# We paste the genome and taxon files to create the name2taxon file and remove temporary files
+paste \
+  "$WORKDIR"/Graph_pangenome/genome.tmp \
+  "$WORKDIR"/Graph_pangenome/taxon2.tmp > "$WORKDIR"/Graph_pangenome/name2taxon.tsv
+rm "$WORKDIR"/Graph_pangenome/*.tmp
+
+# List the number of taxa available
+TAXON_LIST=$(cut -f2 "$WORKDIR"/Graph_pangenome/name2taxon.tsv | grep "__" | sort | uniq -c | sort -r | sed 's/^ *//')
+i="1 o__Borreliales"
 echo "$TAXON_LIST" | while read -r i
 do
   IFS=$'\n'
   # Number of genomes available for the given species
   count=$(echo "$i" | cut -d " " -f 1)
-  # Species name
+  # Species name (when available)
   sp=$(echo "$i" | cut -d " " -f 2)
-  # Species name with space between genus and species
-  SPECIES=$(echo "$sp" | sed 's/_/ /')
   # Name of the samples belonging to that species
-  SAMPLES=$(awk -v s="$SPECIES" -F "\t" '$2 ~ s {print $1}' "$TAXONOMY" | grep -v "user")
+  SAMPLES=$(awk -v s="$sp" -F "\t" '$2 ~ s {print $1}' "$WORKDIR"/Graph_pangenome/name2taxon.tsv | grep -v "user")
 
   if [ "$count" -eq 1 ]
   then
