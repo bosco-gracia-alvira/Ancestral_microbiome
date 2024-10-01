@@ -24,12 +24,12 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # The first argument will be the value of $REPLY
 reply <- args[1]
-reply <- "Lactiplantibacillus_plantarum"
 
 # Print the value of reply (for debugging purposes)
-print(paste("The value of REPLY is:", reply))
+print(paste("The following taxon will be used:", reply))
 
-setwd(paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/",reply,"/SNPs_analysis"))
+knitr::opts_knit$set(root.dir = paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/",reply,"/SNPs_analysis"))
+knitr::opts_chunk$set(echo = FALSE)
 
 ```
 
@@ -37,10 +37,10 @@ setwd(paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Micro
 ```{r Loading the data}
 
 # Paths to the files that we want to import
-data_path <- paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/",reply,"/SNPs_analysis")
+data_path <- paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/",reply,"/SNPs_analysis")
 metadata_isolates_path <- paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/",reply,"/Anvio_pangen/Anvio_misc.tsv")
-visuals_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/visuals"
 metadata_isolates_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Anvio_misc.tsv"
+visuals_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals"
 
 # freq is the table that comes from the vcf query that contains allele frequencies for each sample
 freq <- fread(paste0(data_path,"/",reply,".freq"),sep="\t",header=T, colClasses = "character")
