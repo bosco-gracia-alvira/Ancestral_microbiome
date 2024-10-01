@@ -74,7 +74,9 @@ do
 
   else
 
-    echo "There are $count genomes available for the species $sp. Thus, we will make a pangenome."
+    echo "
+    There are $count genomes available for the species $sp. Thus, we will make a pangenome.
+    "
 
     # Create the folder for the species
     ssh -T vetlinux05@pgnsrv043.vu-wien.ac.at << FOO
@@ -103,7 +105,7 @@ FOO
     cd ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$sp"
 
     echo "
-          Making pangenome for $sp
+          Making pangenome for $sp.
           "
 
     SuperPang.py \
