@@ -2,5 +2,7 @@ data/
 visuals/
 code
 */.DS_Store
+./code_new/.DS_Store
 */.Rhistory
+./code_new/.Rhistory
 .DS_Store
