@@ -37,10 +37,9 @@ knitr::opts_chunk$set(echo = FALSE)
 ```{r Loading the data}
 
 # Paths to the files that we want to import
-data_path <- paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/",reply,"/SNPs_analysis")
-metadata_isolates_path <- paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/",reply,"/Anvio_pangen/Anvio_misc.tsv")
-metadata_isolates_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Anvio_misc.tsv"
-visuals_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals"
+data_path <- paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/SNPs_analysis/",reply)
+metadata_isolates_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/SNPs_analysis/metadata.tsv"
+visuals_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/SNPs_analysis"
 
 # freq is the table that comes from the vcf query that contains allele frequencies for each sample
 freq <- fread(paste0(data_path,"/",reply,".freq"),sep="\t",header=T, colClasses = "character")
