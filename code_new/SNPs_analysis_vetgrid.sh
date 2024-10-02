@@ -7,6 +7,7 @@
 
 # Set the paths
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/SNPs_analysis"
+NAME2TAXON="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Graph_pangenome/name2taxon.tsv"
 GENOMES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/genomes"
 VISUALS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/SNPs_analysis"
 BAMS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/mapped"
@@ -57,7 +58,8 @@ do
 
     echo -e "sample\tcoverage" > "$SNPS"/coverage.txt
 
-    for k in "$BAMS"/*
+    # Link the pools to the bams folder
+    for k in "$BAMS"/{c,h}*
     do
         # Set the sample
         sample=$(basename -a "${k}")
@@ -77,6 +79,34 @@ do
         # Append the mean coverage to the coverage file
         echo -e "${sample}\t${mean_coverage}" >> "$SNPS/coverage.txt"
     done
+
+    # List the isolates that belong to the iterated taxon
+    grep "${taxon}" "$NAME2TAXON" |\
+    grep -v "MAG"|\
+    cut -f1 |\
+    cut -d "_" -f 1 > "$SNPS/isolates.tsv"
+
+    # Link only the isolates belonging to the correct taxonomy to the bams folder
+    while IFS=$'\t' read -r isolate
+    do
+        # Set the isolate
+        sample="i${isolate}"
+
+        # Link the bams to the SNPs analysis folder
+        ln -s "$BAMS/${sample}/${taxon}.bam" "$SNPS/bams/${sample}.bam"
+
+        # Inform the user of the current state
+        echo "Calculating coverage for sample ${sample} in taxon ${taxon}"
+        
+        # Calculate the mean coverage of the sample (Truncated coverage 80%)
+        mean_coverage=$(
+            samtools depth "$SNPS/bams/${sample}.bam" | \
+            sort -k3,3nr | \
+            awk '{ all[NR] = $3; sum+=$3 } END {if (NR==0) print 0; else { for (i=int(NR*0.1)+1; i<=int(NR*0.9); i++) s+=all[i]; print s/(int(NR*0.9)-int(NR*0.1)) } }')
+
+        # Append the mean coverage to the coverage file
+        echo -e "${sample}\t${mean_coverage}" >> "$SNPS/coverage.txt"
+    done < "$SNPS/isolates.tsv"
 
     # Change to the local directory because the vcf uses local paths from coverage_5.txt
     cd "$SNPS" || exit
