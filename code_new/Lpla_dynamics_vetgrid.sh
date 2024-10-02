@@ -9,12 +9,12 @@ LOCATION_COLD="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ances
 LOCATION_HOT="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_hot"
 LOCATION_ISOLATES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly"
 
-WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_Lpla_3strains_replicates"
+WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics"
 RAW_READS="$WORKDIR/reads"
 GENOMES="$WORKDIR/genomes"
 LOGS="$WORKDIR/logs"
 MAPPED="$WORKDIR/mapped"
-METADATA="$WORKDIR/Metadata.csv"
+METADATA="$WORKDIR/Metadata.tsv"
 
 ### COMMANDS
 IFS="
