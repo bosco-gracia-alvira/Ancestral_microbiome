@@ -24,6 +24,7 @@ then
     mkdir -p "$VISUALS"
 fi
 
+# Create subfolders in the working directory
 if [[ ! -d "$MAPPED" ]]
 then
   mkdir -p "$MAPPED"
