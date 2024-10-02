@@ -5,11 +5,8 @@
 ### VARIABLES
 
 # Set the paths
-LOCATION_COLD="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_cold"
-LOCATION_HOT="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_hot"
-LOCATION_ISOLATES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly"
-
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics"
+BAMS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/mapped"
 RAW_READS="$WORKDIR/reads"
 GENOMES="$WORKDIR/genomes"
 LOGS="$WORKDIR/logs"
@@ -48,28 +45,47 @@ ln -s "$B89" "$GENOMES"
 # Combine the three genomes
 cat "$GENOMES"/S103.fasta "$GENOMES"/S239.fasta "$GENOMES"/B89.fasta > "$GENOMES"/combined.fa
 
-# We create the raw reads folder and link the poolseqs and isolates reads to it
+# We create the raw reads folder and extract the reads from the bam files
 if [[ ! -d "$RAW_READS" ]]
 then
   mkdir "$RAW_READS"
 fi
 
-for i in $(basename "$LOCATION_HOT"/F*)
+# Extract the reads from the bam files...
+# From the hot pools
+for j in "$BAMS"/h*
 do
-  for j in $(seq 1 10)
-  do
-    ln -s "$LOCATION_HOT"/${i}/${i}_${j}_noCont_1.fq.gz "$RAW_READS"/h${i}_${j}_1.fq.gz
-    ln -s "$LOCATION_HOT"/${i}/${i}_${j}_noCont_2.fq.gz "$RAW_READS"/h${i}_${j}_2.fq.gz
-  done
+    sample=$(basename "${j}")
+    echo "Extracting reads from ${sample}"
+    samtools fastq \
+        -F 4 \
+        -1 "$RAW_READS"/"${sample}_1.fq.gz" \
+        -2 "$RAW_READS"/"${sample}_2.fq.gz" \
+        "${BAMS}/${sample}/s__Lactiplantibacillus_plantarum.bam"
 done
 
-for i in $(basename "$LOCATION_COLD"/F*)
+# From the cold pools
+for j in "$BAMS"/c*
 do
-  for j in $(seq 11 20)
-  do
-    ln -s "$LOCATION_COLD"/${i}/${i}_${j}_noCont_1.fq.gz "$RAW_READS"/c${i}_$(($j-10))_1.fq.gz
-    ln -s "$LOCATION_COLD"/${i}/${i}_${j}_noCont_2.fq.gz "$RAW_READS"/c${i}_$(($j-10))_2.fq.gz
-  done
+    sample=$(basename "${j}")
+    echo "Extracting reads from ${sample}"
+    samtools fastq \
+        -F 4 \
+        -1 "$RAW_READS"/"${sample}_1.fq.gz" \
+        -2 "$RAW_READS"/"${sample}_2.fq.gz" \
+        "${BAMS}/${sample}/s__Lactiplantibacillus_plantarum.bam"
+done
+
+# From the isolates
+for j in $BAMS
+do
+    sample="i${j}"
+    echo "Extracting reads from ${sample}"
+    samtools fastq \
+            -F 4 \
+            -1 "$RAW_READS/${j}_1.fq.gz" \
+            -2 "$RAW_READS/${j}_2.fq.gz" \
+            "${BAMS}/${sample}/s__Lactiplantibacillus_plantarum.bam"
 done
 
 ln -s "$LOCATION_ISOLATES"/Pool_503/02.Rm_adapters/fastq_clean/S103.clean_1.fq.gz "$RAW_READS"/iS103_1.fq.gz
