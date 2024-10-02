@@ -6,6 +6,7 @@
 
 # Set the paths
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics"
+VISUALS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Lpla_dynamics"
 BAMS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/mapped"
 NAME2TAXON="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Graph_pangenome/name2taxon.tsv"
 RAW_READS="$WORKDIR/reads"
@@ -16,6 +17,12 @@ MAPPED="$WORKDIR/mapped"
 ### COMMANDS
 IFS="
 "
+
+# Create the folder where plots will go
+if [[ ! -f "$VISUALS" ]]
+then
+    mkdir -p "$VISUALS"
+fi
 
 if [[ ! -d "$MAPPED" ]]
 then
