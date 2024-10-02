@@ -106,6 +106,8 @@ do
     # Create the results folder
     mkdir -p "$MAPPED"/${name}
 
+    echo "Mapping sample ${name}"
+
     # Map paired end reads using bowtie with stringent settings and output the result to a sam file
     bowtie2 \
         -x "$GENOMES"/combined \
@@ -157,6 +159,7 @@ do
     # Remove the combined bam file, the index and the header
     rm "$MAPPED"/${name}/combined_sorted.bam
     rm "$MAPPED"/${name}/combined_sorted.bam.bai
+    rm "$MAPPED"/${name}/header.sam
 done
 
 # This chunk calculates the statistics that we are intersted in:
