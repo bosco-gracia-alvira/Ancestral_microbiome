@@ -50,9 +50,9 @@ do
 
     # Set folders structure
     SNPS="$WORKDIR/${taxon}"
-    if [[ ! -f "$SNPS" ]]
+    if [[ ! -f "$SNPS"/bams ]]
     then
-        mkdir -p "$SNPS"
+        mkdir -p "$SNPS"/bams
     fi
 
     echo -e "sample\tcoverage" > "$SNPS"/coverage.txt
@@ -61,11 +61,16 @@ do
     do
         # Set the sample
         sample=$(basename -a "${k}")
+
+        # Link the bams to the SNPs analysis folder
+        ln -s "$BAMS/${sample}/${taxon}.bam" "$SNPS/bams/${sample}.bam"
+
+        # Inform the user of the current state
         echo "Calculating coverage for sample ${sample} in taxon ${taxon}"
         
         # Calculate the mean coverage of the sample (Truncated coverage 80%)
         mean_coverage=$(
-            samtools depth "$BAMS/${sample}/${taxon}.bam" | \
+            samtools depth "$SNPS/bams/${sample}.bam" | \
             sort -k3,3nr | \
             awk '{ all[NR] = $3; sum+=$3 } END {if (NR==0) print 0; else { for (i=int(NR*0.1)+1; i<=int(NR*0.9); i++) s+=all[i]; print s/(int(NR*0.9)-int(NR*0.1)) } }')
 
@@ -73,14 +78,15 @@ do
         echo -e "${sample}\t${mean_coverage}" >> "$SNPS/coverage.txt"
     done
 
+    # Change to the local directory because the vcf uses local paths from coverage_5.txt
     cd "$SNPS" || exit
 
     # List the samples with coverage above 10 and 5
-    awk '$2 >= 10 {print "./bams/"$1"_sorted.bam"}' "$SNPS/coverage.txt" | grep -v "sample" > "$SNPS/coverage_10.txt"
-    awk '$2 >= 5 {print "./bams/"$1"_sorted.bam"}' "$SNPS/coverage.txt" | grep -v "sample" > "$SNPS/coverage_5.txt"
+    awk '$2 >= 10 {print "./bams/"$1".bam"}' "$SNPS/coverage.txt" | grep -v "sample" > "$SNPS/coverage_10.txt"
+    awk '$2 >= 5 {print "./bams/"$1".bam"}' "$SNPS/coverage.txt" | grep -v "sample" > "$SNPS/coverage_5.txt"
 
     # This chunk counts the reference and alternative allele frequency in each position and in each sample (mpileup), then calls the SNPs (call) and filters the SNPs (no indels) with a quality above 20 and a depth above 5 
-    bcftools mpileup -f "$SNPS"/ref.fa -b "$SNPS/coverage_5.txt" -Q 20 -D -d 50 -a DP,AD,QS,SCR -Ou --threads 16 | \
+    bcftools mpileup -f "$GENOMES/${taxon}.fasta" -b "$SNPS/coverage_5.txt" -Q 20 -D -d 50 -a DP,AD,QS,SCR -Ou --threads 16 | \
         bcftools call  --ploidy 1 -Ou -cv --threads 16 | \
         bcftools view -i 'QUAL > 20' -v snps -m2 -M2 -Ov - > "$SNPS/temp_${taxon}.vcf"
         # bcftools view -e 'FORMAT/DP[:0] < 3' -Ov - Filtering can be done in the R analysis step
