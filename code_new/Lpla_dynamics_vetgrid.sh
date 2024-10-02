@@ -7,11 +7,11 @@
 # Set the paths
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics"
 BAMS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/mapped"
+NAME2TAXON="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Graph_pangenome/name2taxon.tsv"
 RAW_READS="$WORKDIR/reads"
 GENOMES="$WORKDIR/genomes"
 LOGS="$WORKDIR/logs"
 MAPPED="$WORKDIR/mapped"
-METADATA="$WORKDIR/Metadata.tsv"
 
 ### COMMANDS
 IFS="
@@ -26,7 +26,6 @@ if [[ ! -d "$LOGS" ]]
 then
   mkdir "$LOGS"
 fi
-
 
 # Create the genomes folder and set the path to it
 if [[ ! -d "$GENOMES" ]]
@@ -76,26 +75,22 @@ do
         "${BAMS}/${sample}/s__Lactiplantibacillus_plantarum.bam"
 done
 
-# From the isolates
-for j in $BAMS
+# Select the L. plantarum isolates
+grep "s__Lactiplantibacillus_plantarum" "$NAME2TAXON" |\
+    grep -v "MAG"|\
+    cut -f1 |\
+    cut -d "_" -f 1 > "$WORKDIR"/isolates.tsv
+
+while IFS=$'\t' read -r sample
 do
-    sample="i${j}"
     echo "Extracting reads from ${sample}"
+    isolate="i${sample}"
     samtools fastq \
-            -F 4 \
-            -1 "$RAW_READS/${j}_1.fq.gz" \
-            -2 "$RAW_READS/${j}_2.fq.gz" \
-            "${BAMS}/${sample}/s__Lactiplantibacillus_plantarum.bam"
-done
-
-ln -s "$LOCATION_ISOLATES"/Pool_503/02.Rm_adapters/fastq_clean/S103.clean_1.fq.gz "$RAW_READS"/iS103_1.fq.gz
-ln -s "$LOCATION_ISOLATES"/Pool_503/02.Rm_adapters/fastq_clean/S103.clean_2.fq.gz "$RAW_READS"/iS103_2.fq.gz
-
-ln -s "$LOCATION_ISOLATES"/Pool_503/02.Rm_adapters/fastq_clean/S239.clean_1.fq.gz "$RAW_READS"/iS239_1.fq.gz
-ln -s "$LOCATION_ISOLATES"/Pool_503/02.Rm_adapters/fastq_clean/S239.clean_2.fq.gz "$RAW_READS"/iS239_2.fq.gz
-
-ln -s "$LOCATION_ISOLATES"/Pool_643/02.Rm_adapters/fastq_clean/B89.clean_1.fq.gz "$RAW_READS"/iB89_1.fq.gz
-ln -s "$LOCATION_ISOLATES"/Pool_643/02.Rm_adapters/fastq_clean/B89.clean_2.fq.gz "$RAW_READS"/iB89_2.fq.gz
+        -F 4 \
+        -1 "$RAW_READS/${isolate}_1.fq.gz" \
+        -2 "$RAW_READS/${isolate}_2.fq.gz" \
+        "${BAMS}/${isolate}/s__Lactiplantibacillus_plantarum.bam"
+done < "$WORKDIR"/isolates.tsv
 
 ### Competetive reads mapping to the representative microbiome and extraction of the unmapped reads
 
@@ -103,70 +98,65 @@ ln -s "$LOCATION_ISOLATES"/Pool_643/02.Rm_adapters/fastq_clean/B89.clean_2.fq.gz
 bowtie2-build --threads 16 "$GENOMES"/combined.fa "$GENOMES"/combined
 
 # Competitive mapping mapping against each of the reads sets
-for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
+for i in "$RAW_READS"/*_1.fq.gz
 do
+    # Declare the variable name
+    name=$(basename -a "$i" | cut -d "_" -f1)
 
-  # If the sample is an isolates genome (starts with "i"), keep only the first field, else keep the two first fields
-  if [[ "$i" == i* ]]
-  then
-  name=$(echo "$i" | cut -d "_" -f1)
-  else
-  name=$(echo "$i" | cut -d "_" -f1,2)
-  fi
-  # Create the results folder
-  mkdir -p "$MAPPED"/${name}
+    # Create the results folder
+    mkdir -p "$MAPPED"/${name}
 
-  # Map paired end reads using bowtie with stringent settings and output the result to a sam file
-  bowtie2 \
-    -x "$GENOMES"/combined \
-    -q --very-sensitive \
-    --no-mixed \
-    --no-discordant \
-    -1 "$RAW_READS"/${name}_1.fq.gz \
-    -2 "$RAW_READS"/${name}_2.fq.gz \
-    -S "$MAPPED"/${name}/combined.sam \
-    --threads 16 > "$LOGS"/bowtie2_${name}.log 2>&1
+    # Map paired end reads using bowtie with stringent settings and output the result to a sam file
+    bowtie2 \
+        -x "$GENOMES"/combined \
+        -q --very-sensitive \
+        --no-mixed \
+        --no-discordant \
+        -1 "$RAW_READS"/${name}_1.fq.gz \
+        -2 "$RAW_READS"/${name}_2.fq.gz \
+        -S "$MAPPED"/${name}/combined.sam \
+        --threads 16 > "$LOGS"/bowtie2_${name}.log 2>&1
 
-  # Turn the sam into bam to save memory
-  samtools view \
-    -bS \
-    -@ 16 \
-    "$MAPPED"/${name}/combined.sam > "$MAPPED"/${name}/combined.bam
+    # Turn the sam into bam to save memory
+    samtools view \
+        -bS \
+        -@ 16 \
+        "$MAPPED"/${name}/combined.sam > "$MAPPED"/${name}/combined.bam
 
-  # Delete the sam
-  rm "$MAPPED"/${name}/combined.sam
+    # Delete the sam
+    rm "$MAPPED"/${name}/combined.sam
 
-  # Sort the bam
-  samtools sort \
-    -@ 16 \
-    -O bam \
-    -o "$MAPPED"/${name}/combined_sorted.bam \
-    "$MAPPED"/${name}/combined.bam
+    # Sort the bam
+    samtools sort \
+        -@ 16 \
+        -O bam \
+        -o "$MAPPED"/${name}/combined_sorted.bam \
+        "$MAPPED"/${name}/combined.bam
 
-  # Delete the unsorted bam
-  rm "$MAPPED"/${name}/combined.bam
+    # Delete the unsorted bam
+    rm "$MAPPED"/${name}/combined.bam
 
-  # Extract the header of the bam
-  samtools view -H "$MAPPED"/${name}/combined_sorted.bam > "$MAPPED"/${name}/header.sam
+    # Extract the header of the bam
+    samtools view -H "$MAPPED"/${name}/combined_sorted.bam > "$MAPPED"/${name}/header.sam
 
-  # Index the combined bam
-  samtools index "$MAPPED"/${name}/combined_sorted.bam
+    # Index the combined bam
+    samtools index "$MAPPED"/${name}/combined_sorted.bam
 
-  # For each of the original genomes...
-  for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
-  do  
-    # Make a list with all the contigs belonging to that genome
-    contigs=$(samtools idxstats "$MAPPED"/${name}/combined_sorted.bam | cut -f 1 | grep "^${j}")
+    # For each of the original genomes...
+    for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
+    do  
+        # Make a list with all the contigs belonging to that genome
+        contigs=$(samtools idxstats "$MAPPED"/${name}/combined_sorted.bam | cut -f 1 | grep "^${j}")
 
-    # From the combined bam, extract the reads that map the contigs of the specific genome "j"
-    # Then, add the header and create a new file with the reads mapping to "j"
-    samtools view -@ 16 -b "$MAPPED"/${name}/combined_sorted.bam $contigs |\
-      samtools reheader "$MAPPED"/${name}/header.sam - > "$MAPPED"/${name}/${j}.bam
-  done
+        # From the combined bam, extract the reads that map the contigs of the specific genome "j"
+        # Then, add the header and create a new file with the reads mapping to "j"
+        samtools view -@ 16 -b "$MAPPED"/${name}/combined_sorted.bam $contigs |\
+            samtools reheader "$MAPPED"/${name}/header.sam - > "$MAPPED"/${name}/${j}.bam
+    done
 
-  # Remove the combined bam file, the index and the header
-  rm "$MAPPED"/${name}/combined_sorted.bam
-  rm "$MAPPED"/${name}/combined_sorted.bam.bai
+    # Remove the combined bam file, the index and the header
+    rm "$MAPPED"/${name}/combined_sorted.bam
+    rm "$MAPPED"/${name}/combined_sorted.bam.bai
 done
 
 # This chunk calculates the statistics that we are intersted in:
@@ -223,6 +213,6 @@ paste "$WORKDIR"/genome_name.col "$WORKDIR"/genome_size.col > "$WORKDIR"/genome_
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_reads.col > "$WORKDIR"/reads_mapped.tsv
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_uniq.col > "$WORKDIR"/uniq_mapped.tsv
 
-rm -r "$WORKDIR"/*.col
+#rm -r "$WORKDIR"/*.col
 
 echo -e "Mapping finished"
