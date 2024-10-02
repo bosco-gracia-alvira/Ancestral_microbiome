@@ -173,45 +173,56 @@ done
 # Number of reads mapped to each genome
 # Number of reads mapped UNIQUELY to each genome
 
+echo -e "Calculating reads mapped to each L. plantarum strain"
+
 # Remove any previous temporary file
-rm "$WORKDIR"/*.tmp
+rm -r "$WORKDIR"/*.col
+
+# For each of the original genomes we create a temporary file to store the number of reads mapped to it, as well as the sample and genome names and sizes
+echo -e "Sample" > "$WORKDIR"/sample_name.col
+echo -e "Genome" > "$WORKDIR"/genome_name.col
+echo -e "Size" > "$WORKDIR"/genome_size.col
+
+for j in "$GENOMES"/*.fasta
+do
+    # Strain variable is the strain name
+    strain=$(basename -a "${j}" | cut -d "." -f1)
+    # Genome variable is the fasta file for each strain
+    genome=$(basename -a "${j}")
+    # Create columns for reads mapping to each strain
+    echo -e "${strain}" > "$WORKDIR"/${strain}_reads.col
+    echo -e "${strain}" > "$WORKDIR"/${strain}_uniq.col
+    # Create a column with strain names
+    echo -e "${strain}" >> "$WORKDIR"/genome_name.col
+    # Create a column with strain genome size
+    seqkit stats "${genome}" | awk 'NR==2 {print $7}' >> "$WORKDIR"/genome_size.col
+done
 
 # For each sample...
-for i in $(basename -a "$RAW_READS"/*_1.fq.gz | cut -d "_" -f1,2)
+for i in "$RAW_READS"/*_1.fq.gz
 do
+    sample=$(basename -a "${i}" | cut -d "_" -f1)
 
-  # Add the sample name to the file "sample_name.tmp"
-  echo ${i} >> "$WORKDIR"/sample_name.tmp
+    # Add the sample name to the file "sample_name.tmp"
+    echo ${sample} >> "$WORKDIR"/sample_name.col
 
-  # For each of the original genomes...
-  for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
-  do
-
-    # Extract the number of reads mapped to the genome and add it to ""$WORKDIR"/${j}_reads.tmp"
-    samtools view -c -F 4 "$MAPPED"/${i}/${j}.bam >> "$WORKDIR"/${j}_reads.tmp
-
-    # Extract the number of reads mapped uniquely to the genome (with MAPQ>3) and add it to ""$WORKDIR"/${j}_uniq.tmp"
-    samtools view -c -F 4 -q 4 "$MAPPED"/${i}/${j}.bam >> "$WORKDIR"/${j}_uniq.tmp
-
-  done 
+    # For each of the original genomes...
+    for j in "$GENOMES"/*.fasta
+    do
+        # Strain variable is the strain name
+        strain=$(basename -a "${j}" | cut -d "." -f1)
+        # Extract the number of reads mapped to the genome and add it to ""$WORKDIR"/${j}_reads.tmp"
+        samtools view -c -F 4 "$MAPPED"/${sample}/${strain}.bam >> "$WORKDIR"/${strain}_reads.col
+        # Extract the number of reads mapped uniquely to the genome (with MAPQ>3) and add it to ""$WORKDIR"/${j}_uniq.tmp"
+        samtools view -c -F 4 -q 4 "$MAPPED"/${sample}/${strain}.bam >> "$WORKDIR"/${strain}_uniq.col
+    done 
 
 done
 
-# Paste the columns generated in the previous chunk
-paste \
-  "$WORKDIR"/sample_name.tmp \
-  "$WORKDIR"/S103_reads.tmp \
-  "$WORKDIR"/S239_reads.tmp \
-  "$WORKDIR"/B89_reads.tmp \
-  "$WORKDIR"/S103_uniq.tmp \
-  "$WORKDIR"/S239_uniq.tmp \
-  "$WORKDIR"/B89_uniq.tmp > "$WORKDIR"/body.tmp
+paste "$WORKDIR"/genome_name.col "$WORKDIR"/genome_size.col > "$WORKDIR"/genome_size.tsv
+paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_reads.col > "$WORKDIR"/reads_mapped.tsv
+paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_uniq.col > "$WORKDIR"/uniq_mapped.tsv
 
-# Create the header with the column names
-echo -e "Sample\tS103_reads\tS239_reads\tB89_reads\tS103_uniq\tS239_uniq\tB89_uniq" > "$WORKDIR"/head.tmp
+rm -r "$WORKDIR"/*.col
 
-# Bind the header to the body and create a file with the depth of each genome in each sample and the ratio between genomes
-#cat "$WORKDIR"/head.tmp "$WORKDIR"/body.tmp > "$WORKDIR"/coverage.tsv
-
-# Remove any previous temporary file
-#rm "$WORKDIR"/*.tmp
+echo -e "Mapping finished"
