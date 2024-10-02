@@ -24,7 +24,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # The first argument will be the value of $REPLY
 reply <- args[1]
-reply <- "s__Acetobacter_indonesiensis"
+reply <- "f__Enterobacteriaceae"
 # Print the value of reply (for debugging purposes)
 print(paste("The following taxon will be used:", reply))
 
@@ -83,6 +83,7 @@ freq_wide <- as.data.table(freq_wide)
 freq_wide <- freq_wide[, lapply(.SD, function(x) if (any(is.nan(x))) NULL else x), .SDcols = names(freq_wide)]
 freq_wide <- as.data.frame(freq_wide)
 row.names(freq_wide) <- rows_freq
+snps <- as.numeric(ncol(freq_wide))
 
 # Transform data to arcosin
 freq_asin <- 2*asin(sqrt(freq_wide))
@@ -158,7 +159,8 @@ dev.off()
 # Import the metadata of all the isolates and subset those present in the PCA
 metadata_isolates <- fread(metadata_isolates_path, header=T)
 metadata_isolates <- metadata_isolates %>%
-  filter(name %in% rownames(freq_asin))
+                        select(sample, Temperature, Generation) %>%
+                        rename(name = sample)
 metadata_isolates$Source <- "Isolate"
 
 metadata_pools <- as.data.frame(rownames(freq_asin)[grepl("^cF|^hF", rownames(freq_asin))])
@@ -219,7 +221,7 @@ PCA_temp <- ggplot() +
                 geom_point(data = pca_pool, aes(x = PC1, y = PC2, color = Temperature, shape = Source), size = 2) +
                 geom_text(data = pca_pool, aes(x = PC1, y = PC2, label = name, color = Temperature), size = 1.5, hjust = -0.5) +
                 labs(
-                  title = "Lactiplantibacillus_plantarum",
+                  title = paste0(reply," (",snps," variable SNPs)"),
                   x = paste0("PC1 (", round(percentage_variance_explained[1], 2), "% variance)"),
                   y = paste0("PC2 (", round(percentage_variance_explained[2], 2), "% variance)"),
                   color = "Temperature", shape = "Source") +
@@ -242,7 +244,7 @@ PCA_SFS <- ggplot() +
               geom_point(data = pca_pool, aes(x = PC1, y = PC2, color = median_SFS, shape = Source), size = 2) +
               geom_text(data = pca_pool, aes(x = PC1, y = PC2, label = name, color = median_SFS), size = 1.5, hjust = -0.5) +
               labs(
-                title = "Lactiplantibacillus_plantarum",
+                title = paste0(reply," (",snps," variable SNPs)"),
                 x = paste0("PC1 (", round(percentage_variance_explained[1], 2), "% variance)"),
                 y = paste0("PC2 (", round(percentage_variance_explained[2], 2), "% variance)"),
                 color = "median_SFS", shape = "Source") +
