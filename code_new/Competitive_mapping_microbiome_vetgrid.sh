@@ -10,6 +10,7 @@ LOCATION_HOT="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancest
 LOCATION_ISOLATES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly"
 LOCATION_REFERENCES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Graph_pangenome"
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome"
+VISUALS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Competitive_mapping_microbiome"
 RAW_READS="$WORKDIR/reads"
 GENOMES="$WORKDIR/genomes"
 LOGS="$WORKDIR/logs"
@@ -20,8 +21,10 @@ MAPPED="$WORKDIR/mapped"
 # Print the current shell
 echo "Current shell: $SHELL"
 
+# Change IFS to just new line
 IFS=$'\n'
 
+# Create subfolders in the working directory
 if [[ ! -d "$MAPPED" ]]
 then
   mkdir -p "$MAPPED"
@@ -31,6 +34,13 @@ if [[ ! -d "$LOGS" ]]
 then
   mkdir "$LOGS"
 fi
+
+# Create the folder where plots will go
+if [[ ! -f "$VISUALS" ]]
+then
+    mkdir -p "$VISUALS"
+fi
+
 
 # Create the genomes folder and set the path to it
 if [[ ! -d "$GENOMES" ]]
