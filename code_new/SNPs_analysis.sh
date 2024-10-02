@@ -8,130 +8,64 @@
 # Set the paths
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/SNPs_analysis"
 GENOMES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/genomes"
-READS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/mapped"
-PLOT="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/code_new/"
+VISUALS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/SNPs_analysis"
+BAMS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/mapped"
+CODE="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/code_new"
+
+### COMMANDS
+IFS=$'\n'
+
+# Create the working directory
+if [[ ! -f "$WORKDIR" ]]
+then
+    mkdir -p "$WORKDIR"
+fi
+
+# Create the isolates metadata used later for plotting
+cat "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_503/metadata.tsv" > "$WORKDIR"/metadata.tmp
+echo "" >> "$WORKDIR"/metadata.tmp
+tail -n +2 "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_591/metadata.tsv" >> "$WORKDIR"/metadata.tmp
+echo "" >> "$WORKDIR"/metadata.tmp
+tail -n +2 "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_643/metadata.tsv" >> "$WORKDIR"/metadata.tmp
+echo "" >> "$WORKDIR"/metadata.tmp
+tail -n +2 "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_644/metadata.tsv" >> "$WORKDIR"/metadata.tmp
+awk -F'\t' 'NR==1 {header=$0; next} {data[$3]=$0} END {print header; for (name in data) print data[name]}' "$WORKDIR"/metadata.tmp > "$WORKDIR"/metadata.tsv
+rm "$WORKDIR"/*.tmp
+
+# Create the folder where plots will go
+if [[ ! -f "$VISUALS" ]]
+then
+    mkdir -p "$VISUALS"
+fi
 
 # For each taxon, do the whole analysis...
-for i in $(basename "$GENOMES/*.fasta")
+for i in "$GENOMES"/*.fasta
 do
     # Extract the taxon name
-    taxon="${i%.fasta}"
-    
+    taxon=$(basename "${i%.fasta}")
+
     echo "
     Analysing taxon ${taxon}
     "
 
     # Set folders structure
     SNPS="$WORKDIR/${taxon}"
-    RAW_READS="$SNPS/reads"
-    LOGS="$SNPS/logs"
-    BAMS="$SNPS/bams"
-
-    ### COMMANDS
-    IFS="
-    "
-
-    if [[ ! -f "$RAW_READS" ]]
+    if [[ ! -f "$SNPS" ]]
     then
-        mkdir -p "$RAW_READS"
+        mkdir -p "$SNPS"
     fi
-
-    if [[ ! -f "$BAMS" ]]
-    then
-        mkdir -p "$BAMS"
-    fi
-
-    if [[ ! -f "$LOGS" ]]
-    then
-        mkdir -p "$LOGS"
-    fi
-
-    # Link the genome to the folder and index it
-    ln -s "$GENOMES/${i}" "$SNPS"/ref.fa
-    samtools faidx "$SNPS"/ref.fa
-
-    # Extract the reads from the bam files...
-    # From the hot pools
-    for j in "$READS"/h*
-    do
-        sample=$(basename "${j}")
-        echo "Extracting reads from ${sample}"
-        samtools fastq \
-            -F 4 \
-            -1 "$RAW_READS"/"${sample}_1.fq.gz" \
-            -2 "$RAW_READS"/"${sample}_2.fq.gz" \
-            "${READS}/${sample}/${taxon}.bam"
-    done
-
-    # From the cold pools
-    for j in "$READS"/c*
-    do
-        sample=$(basename "${j}")
-        echo "Extracting reads from ${sample}"
-        samtools fastq \
-            -F 4 \
-            -1 "$RAW_READS"/"${sample}_1.fq.gz" \
-            -2 "$RAW_READS"/"${sample}_2.fq.gz" \
-            "${READS}/${sample}/${taxon}.bam"
-    done
-
-    # From the isolates
-    for j in $SAMPLES
-    do
-        sample="i${j}"
-        echo "Extracting reads from ${sample}"
-        samtools fastq \
-                -F 4 \
-                -1 "$RAW_READS/${j}_1.fq.gz" \
-                -2 "$RAW_READS/${j}_2.fq.gz" \
-                "${READS}/${sample}/${taxon}.bam"
-    done
-
-    # Map the reads to the reference pangenome
-
-    # Create an index for the reference combined genome
-    bowtie2-build --threads 16 "$SNPS"/ref.fa "$SNPS"/ref
 
     echo -e "sample\tcoverage" > "$SNPS"/coverage.txt
 
-    # Competitive mapping against each of the reads sets
-    for k in $(basename -a "$RAW_READS"/*_1.fq.gz)
+    for k in "$BAMS"/*
     do
-        sample="${k%_1.fq.gz}"
-        r1="${k}"
-        r2="${sample}_2.fq.gz"
-
-        echo "Mapping ${sample}"
-        # Map paired end reads using bowtie with stringent settings and output the result to a sam file
-        bowtie2 \
-            -x "$SNPS"/ref.fa \
-            -q --very-sensitive \
-            --no-mixed \
-            --no-discordant \
-            -1 "$RAW_READS/${r1}" \
-            -2 "$RAW_READS/${r2}" \
-            -S "$BAMS/${sample}.sam" \
-            --threads 16 \
-            --rg-id "${sample}" \
-            --rg "SM:${sample}" > "$LOGS"/bowtie2_${sample}.log 2>&1
-
-        # Turn the sam into bam and sort it
-        samtools view \
-            -bS \
-            -@ 16 \
-            "$BAMS/${sample}.sam" |\
-        samtools sort \
-            -@ 16 \
-            -O bam \
-            -o "$BAMS/${sample}_sorted.bam" \
-            -
-
-        # Delete the sam to save space
-        rm "$BAMS/${sample}.sam"
-
+        # Set the sample
+        sample=$(basename -a "${k}")
+        echo "Calculating coverage for sample ${sample} in taxon ${taxon}"
+        
         # Calculate the mean coverage of the sample (Truncated coverage 80%)
         mean_coverage=$(
-            samtools depth "$BAMS/${sample}_sorted.bam" | \
+            samtools depth "$BAMS/${sample}/${taxon}.bam" | \
             sort -k3,3nr | \
             awk '{ all[NR] = $3; sum+=$3 } END {if (NR==0) print 0; else { for (i=int(NR*0.1)+1; i<=int(NR*0.9); i++) s+=all[i]; print s/(int(NR*0.9)-int(NR*0.1)) } }')
 
@@ -163,5 +97,5 @@ do
     rm "$SNPS/temp_${taxon}.vcf"
 
     # This script plots the PCA of the samples based on the SNPs frequency
-    Rscript "$WORKDIR"/../code/SNPs_plotting.Rmd "${taxon}"
+    #Rscript "$CODE"/SNPs_plotting.Rmd "${taxon}"
 done
