@@ -211,6 +211,6 @@ paste "$WORKDIR"/genome_name.col "$WORKDIR"/genome_size.col > "$WORKDIR"/genome_
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_reads.col > "$WORKDIR"/reads_mapped.tsv
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_uniq.col > "$WORKDIR"/uniq_mapped.tsv
 
-rm "$WORKDIR"/*.col
+rm -r "$WORKDIR"/*.col
 
 echo -e "Mapping finished"
