@@ -1,28 +1,16 @@
----
-title: "SNPs_plotting"
-author: "Bosco Gracia Alvira"
-date: "2024-07-25"
-output: html_document
----
-
-```{r Choose the taxon of interest}
-knitr::opts_chunk$set(echo = FALSE)
 
 # Get the command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
 # The first argument will be the value of $REPLY
 reply <- args[1]
-reply <- "s__Lactiplantibacillus_plantarum"
+
 # Print the value of reply (for debugging purposes)
 print(paste("The following taxon will be used:", reply))
 
 knitr::opts_knit$set(root.dir = paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/",reply,"/SNPs_analysis"))
 
-```
-
-
-```{r Loading packages}
+###r Loading packages
 library(lattice)
 library(data.table)
 library(ggplot2)
@@ -30,9 +18,9 @@ library(dplyr)
 library(tidyverse)
 library(stringr)
 
-```
+#######################################
 
-```{r Loading the data}
+###{r Loading the data}
 
 # Paths to the files that we want to import
 data_path <- paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/SNPs_analysis/",reply)
@@ -47,10 +35,10 @@ colnames(freq) <- gsub("^#", "", colnames(freq))          # Remove "#"
 colnames(freq) <- gsub("^.*\\[.*?\\]", "", colnames(freq))  # Remove anything between brackets
 colnames(freq) <- gsub(":AD$", "", colnames(freq))        # Remove ":AD"
 
-```
+#######################################
 
 
-```{r Process the frequency table}
+###{r Process the frequency table}
 
 # Melt the dataframe to long format
 freq_long <- data.table::melt(freq, id.vars = colnames(freq)[1:4], variable.name = "Sample", value.name = "AF")
@@ -86,9 +74,9 @@ snps <- as.numeric(ncol(freq_wide))
 # Transform data to arcosin
 freq_asin <- 2*asin(sqrt(freq_wide))
 
-```
+#######################################
 
-```{r SFS calculation}
+###{r SFS calculation}
 
 # We calculate the site frequency spectrum for each sample, as well as the median allele frequency
 SFS <- freq_long[,c("Sample","RO")] %>%
@@ -151,10 +139,10 @@ dev.off()
 # Plot the SFS also in R
 SFS_plot
 
-```
+#######################################
 
 
-```{r Import metadata}
+###{r Import metadata}
 
 # Import the metadata of all the isolates and subset those present in the PCA
 metadata_isolates <- fread(metadata_isolates_path, header=T)
@@ -178,10 +166,10 @@ metadata_pools <- metadata_pools %>%
 metadata <- rbind(metadata_isolates,metadata_pools)
 metadata <- merge(metadata, median_SFS, by = "name")
 
-```
+#######################################
 
 
-```{r Calculate PCA}
+###{r Calculate PCA}
 
 # Do the PCA 
 pca.res <- prcomp(freq_asin, retx=TRUE, center = FALSE, scale. =FALSE)
@@ -198,10 +186,10 @@ sdev <- pca.res$sdev
 variance_explained <- sdev^2 / sum(sdev^2)
 percentage_variance_explained <- variance_explained * 100
 
-```
+#######################################
 
 
-```{r Plot PCAs}
+###{r Plot PCAs}
 
 # Merge the eigenvectors and the metadata
 pca_merged <- merge(pca_data, metadata, by = "name")
@@ -262,5 +250,5 @@ dev.off()
 PCA_temp
 PCA_SFS
 
-```
+#######################################
 
