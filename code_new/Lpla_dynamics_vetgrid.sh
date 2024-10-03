@@ -196,7 +196,7 @@ do
     # Create a column with strain names
     echo -e "${strain}" >> "$WORKDIR"/genome_name.col
     # Create a column with strain genome size
-    seqkit stats "${genome}" | awk 'NR==2 {print $7}' >> "$WORKDIR"/genome_size.col
+    seqkit stats "$GENOMES"/"${genome}" | awk 'NR==2 {print $7}' >> "$WORKDIR"/genome_size.col
 done
 
 # For each sample...
