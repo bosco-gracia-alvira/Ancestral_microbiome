@@ -95,7 +95,7 @@ do
   ln -sf "${i%_1.fq.gz}_2.fq.gz" "$RAW_READS"/i${sample}_2.fq.gz
 done
 
-### Competetive reads mapping to the representative microbiome and extraction of the unmapped reads
+### Competitive reads mapping to the representative microbiome and extraction of the unmapped reads
 
 # Create an index for the reference combined genome
 bowtie2-build --threads 16 "$GENOMES"/combined.fa "$GENOMES"/combined
@@ -166,6 +166,7 @@ do
   # Remove the combined bam file, the index and the header
   rm "$MAPPED"/${name}/combined_sorted.bam
   rm "$MAPPED"/${name}/combined_sorted.bam.bai
+  rm "$MAPPED"/${name}/header.sam
 done
 
 # This chunk calculates the statistics that we are intersted in:
