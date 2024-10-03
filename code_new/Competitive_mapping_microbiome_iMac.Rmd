@@ -160,6 +160,10 @@ plot_list <- list()
 
 # We iterate to create a ggplot object for each series
 for(i in seq_along(tpm_list)) {
+  
+  # Open a graphics device (e.g., PNG)
+  png(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"))
+  
   # Create a plot for each data frame
  p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Taxon)) +
     geom_area() +
@@ -170,7 +174,12 @@ for(i in seq_along(tpm_list)) {
     labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
   
    p
-   #ggsave(filename = paste0(visuals_path,"Lpla_3strains_bbmap_",names(df_list)[i],".png"), width = 6, height = 4, dpi = 300)
+  #Save the plot using ggsave
+  ggsave(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
+
+  # Close the graphics device
+  dev.off()
+   #ggsave(filename = paste0(visuals_path,"Microbiome_dynamics",,".png"), width = 6, height = 4, dpi = 300)
   
   # Store the plot in the list
   plot_list[[i]] <- p
