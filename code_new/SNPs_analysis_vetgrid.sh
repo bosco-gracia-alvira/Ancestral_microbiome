@@ -132,6 +132,4 @@ do
     # Delete the temporary file
     rm "$SNPS/temp_${taxon}.vcf"
 
-    # This script plots the PCA of the samples based on the SNPs frequency
-    #Rscript "$CODE"/SNPs_plotting.Rmd "${taxon}"
 done
