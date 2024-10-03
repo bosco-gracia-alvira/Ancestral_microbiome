@@ -87,7 +87,7 @@ done
 grep "s__Lactiplantibacillus_plantarum" "$NAME2TAXON" |\
     grep -v "MAG"|\
     cut -f1 |\
-    cut -d "_" -f 1 > "$WORKDIR"/isolates.tsv
+    cut -d "_" -f1 > "$WORKDIR"/isolates.tsv
 
 while IFS=$'\t' read -r sample
 do
