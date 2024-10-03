@@ -27,7 +27,8 @@ library(pheatmap)
 reads_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/reads_mapped.tsv"
 uniq_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/uniq_mapped.tsv"
 size_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/genome_size.tsv"
-visuals_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/"
+colour_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome/genome_colours.tsv"
+visuals_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Competitive_mapping_microbiome"
 
 # Load the coverage, sort the samples alphanumerically and make them row names
 coverage <- fread(uniq_path, header=T)
@@ -132,124 +133,23 @@ tpm_pools_long <- aggregate(TPM ~ Sample + Taxon + generation + temperature, dat
 
 ```
 
-```{r Taxons order and colour, message=FALSE, warning=FALSE}
-# Here we set the order in which we want the taxons to appear.
-Amplicon_level <- c("Other",
-                    "Corynebacteriales",
-                    "Chloroplast",
-                    "Lactobacillales",
-                    "Chitinophagales",
-                    "Orbales",
-                    "Enterobacterales",
-                    "ASV_7",
-                    "ASV_5",
-                    "ASV_4",
-                    "ASV_2",
-                    "ASV_15")
+```{r Colour the taxa}
+# Read the genome_colours.tsv file
+colour <- as.data.frame(fread(colour_path))
+colour$Order <- as.numeric(colour$Order)
 
-taxon_levels <- c("Other",
-                  "o_Borreliales",
-                  "s_Corynebacterium_provencense",
-                  "s_Corynebacterium_nuruki",
-                  "g_Enteroccus",
-                  "s_Enterococcus_faecalis",
-                  "s_Leuconostoc_pseudomesenteroides",
-                  "s_Levilactobacillus_brevis",
-                  "s_Lactiplantibacillus_paracasei",
-                  "s_Lactiplantibacillus_plantarum",
-                  "g_Chitinophaga",
-                  "f_Enterobacteriaceae_3",
-                  "f_Enterobacteriaceae_2",
-                  "f_Enterobacteriaceae_1",
-                  "f_Enterobacteriaceae",
-                  "s_Morganella_morganii",
-                  "s_Acetobacter_indonesiensis_3",
-                  "s_Acetobacter_indonesiensis_2",
-                  "s_Acetobacter_indonesiensis_1",
-                  "s_Acetobacter_sicerae",
-                  "s_Acetobacter_oryzifermentans",
-                  "g_Acetobacter")
+# Merge the colour and order info to the table
+tpm_pools_long <- tpm_pools_long %>%
+  left_join(colour, by = "Taxon")
 
-# Here we choose the colour 
-Amplicon_colours <- c("#E69F00", #12
-                      "#0072B2", #11
-                      "#D55E00", #10
-                      "#FF3030", #9
-                      "#CC79A7", #8
-                      "#56B4E9", #7
-                      "#F0E442", #6
-                      "#458B00", #5
-                      "#00CDCD", #4
-                      "#68228B", #3
-                      "#FF1493", #2
-                      "#FFD700") #1
+# Arrange the data frame by Order and then by Sample
+tpm_pools_long <- tpm_pools_long %>%
+  arrange(Order, Sample)
 
+# Set the factor levels of Taxon based on the arranged order
+tpm_pools_long$Taxon <- factor(tpm_pools_long$Taxon, levels = unique(tpm_pools_long$Taxon))
 
-Abundance_colours <- c("#E69F00", #12
-                       "#0072B2", #11
-                       "#0072B2", #11
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#CC79A7", #8
-                       "#56B4E9", #7
-                       "#56B4E9", #7
-                       "#F0E442", #6
-                       "#F0E442", #6
-                       "#458B00", #5
-                       "#458B00", #5
-                       "#458B00", #5
-                       "#00CDCD", #4
-                       "#68228B", #3 
-                       "#68228B") #3
-
-
-# This palette clusters the taxa by colour
-
-Amplicon_colours <- c("#E69F00", #12
-                      "#FFF0F5", #11
-                      "#D55E00", #10
-                      "#FF3030", #9
-                      "#CC79A7", #8
-                      "#6B8E23", #7
-                      "#B3EE3A", #6
-                      "#00CDCD", #5
-                      "#00F5FF", #4
-                      "#B2DFEE", #3
-                      "#27408B", #2
-                      "#63B8FF") #1
-
-
-Abundance_colours <- c("#E69F00", #12
-                       "#FFF0F5", #11
-                       "#FFF0F5", #11
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#CC79A7", #8
-                       "#6B8E23", #7
-                       "#6B8E23", #7
-                       "#B3EE3A", #6
-                       "#B3EE3A", #6
-                       "#00CDCD", #5
-                       "#00CDCD", #5
-                       "#00CDCD", #5
-                       "#00F5FF", #4
-                       "#B2DFEE", #3  
-                       "#B2DFEE") #3
 ```
-
-
-
-
-
-
 
 ```{r Trajectory over the time}
 
@@ -265,6 +165,7 @@ for(i in seq_along(tpm_list)) {
     geom_area() +
     ylab("Taxon relative Abundance") +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    scale_fill_manual(values = setNames(tpm_list[[i]]$Colour, tpm_list[[i]]$Taxon)) +
     xlab("Generation") +
     labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
   
