@@ -43,6 +43,9 @@ size$Size <- gsub(",", "", size$Size)
 size$Size <- as.numeric(size$Size)
 size_vec <- as.vector(size[, 2])
 
+# Create a colour palette for our temperatures
+temp_palette <- c("HOT" = "red", "BASE" = "grey", "COLD" = "lightblue")
+
 ```
 
 
@@ -77,6 +80,10 @@ tpm_pools <- rownames_to_column(tpm_pools, var = "Taxon")
 # Melt the dataframe to long format
 tpm_i_long <- reshape2::melt(tpm_i, id.vars = "Taxon", variable.name = "Sample", value.name = "TPM")
 tpm_pools_long <- reshape2::melt(tpm_pools, id.vars = "Taxon", variable.name = "Sample", value.name = "TPM")
+
+# Set the factor levels of the strains
+tpm_i_long$Taxon <- factor(tpm_i_long$Taxon, levels = c("S103","S239","B89"))
+tpm_pools_long$Taxon <- factor(tpm_pools_long$Taxon, levels = c("S103","S239","B89"))
 
 # Based on the sample name, we create two new columns: Generation and Temperature
 tpm_i_long <- tpm_i_long %>%
@@ -119,139 +126,7 @@ nrow(tpm_pools_long)
 
 ```
 
-```{r Merge low abundance taxa}
-
-# How many taxa have less than 10000 TPMs in ALL the samples (less than 1% abundance)?
-# We extract the names of these taxa
-sum(apply(tpm_pools[,-1], 1, function(row) all(row < 10000)))
-other_taxa <- apply(tpm_pools[,-1], 1, function(row) all(row < 10000))
-other_taxa <- tpm_pools[other_taxa, 1]
-
-tpm_pools_long$Taxon <- ifelse(tpm_pools_long$Taxon %in% other_taxa, "Other", tpm_pools_long$Taxon)
-tpm_pools_long <- aggregate(TPM ~ Sample + Taxon + generation + temperature, data = tpm_pools_long, sum)
-
-```
-
-```{r Taxons order and colour, message=FALSE, warning=FALSE}
-# Here we set the order in which we want the taxons to appear.
-Amplicon_level <- c("Other",
-                    "Corynebacteriales",
-                    "Chloroplast",
-                    "Lactobacillales",
-                    "Chitinophagales",
-                    "Orbales",
-                    "Enterobacterales",
-                    "ASV_7",
-                    "ASV_5",
-                    "ASV_4",
-                    "ASV_2",
-                    "ASV_15")
-
-taxon_levels <- c("Other",
-                  "o_Borreliales",
-                  "s_Corynebacterium_provencense",
-                  "s_Corynebacterium_nuruki",
-                  "g_Enteroccus",
-                  "s_Enterococcus_faecalis",
-                  "s_Leuconostoc_pseudomesenteroides",
-                  "s_Levilactobacillus_brevis",
-                  "s_Lactiplantibacillus_paracasei",
-                  "s_Lactiplantibacillus_plantarum",
-                  "g_Chitinophaga",
-                  "f_Enterobacteriaceae_3",
-                  "f_Enterobacteriaceae_2",
-                  "f_Enterobacteriaceae_1",
-                  "f_Enterobacteriaceae",
-                  "s_Morganella_morganii",
-                  "s_Acetobacter_indonesiensis_3",
-                  "s_Acetobacter_indonesiensis_2",
-                  "s_Acetobacter_indonesiensis_1",
-                  "s_Acetobacter_sicerae",
-                  "s_Acetobacter_oryzifermentans",
-                  "g_Acetobacter")
-
-# Here we choose the colour 
-Amplicon_colours <- c("#E69F00", #12
-                      "#0072B2", #11
-                      "#D55E00", #10
-                      "#FF3030", #9
-                      "#CC79A7", #8
-                      "#56B4E9", #7
-                      "#F0E442", #6
-                      "#458B00", #5
-                      "#00CDCD", #4
-                      "#68228B", #3
-                      "#FF1493", #2
-                      "#FFD700") #1
-
-
-Abundance_colours <- c("#E69F00", #12
-                       "#0072B2", #11
-                       "#0072B2", #11
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#CC79A7", #8
-                       "#56B4E9", #7
-                       "#56B4E9", #7
-                       "#F0E442", #6
-                       "#F0E442", #6
-                       "#458B00", #5
-                       "#458B00", #5
-                       "#458B00", #5
-                       "#00CDCD", #4
-                       "#68228B", #3 
-                       "#68228B") #3
-
-
-# This palette clusters the taxa by colour
-
-Amplicon_colours <- c("#E69F00", #12
-                      "#FFF0F5", #11
-                      "#D55E00", #10
-                      "#FF3030", #9
-                      "#CC79A7", #8
-                      "#6B8E23", #7
-                      "#B3EE3A", #6
-                      "#00CDCD", #5
-                      "#00F5FF", #4
-                      "#B2DFEE", #3
-                      "#27408B", #2
-                      "#63B8FF") #1
-
-
-Abundance_colours <- c("#E69F00", #12
-                       "#FFF0F5", #11
-                       "#FFF0F5", #11
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#FF3030", #10
-                       "#CC79A7", #8
-                       "#6B8E23", #7
-                       "#6B8E23", #7
-                       "#B3EE3A", #6
-                       "#B3EE3A", #6
-                       "#00CDCD", #5
-                       "#00CDCD", #5
-                       "#00CDCD", #5
-                       "#00F5FF", #4
-                       "#B2DFEE", #3  
-                       "#B2DFEE") #3
-```
-
-
-
-
-
-
-
-```{r Trajectory over the time}
+```{r Trajectory over the time (pools)}
 
 # The table has information from 2 temperature time series. We create a list in which each series is an element.
 tpm_list <- split(tpm_pools_long, tpm_pools_long$temperature)
@@ -264,12 +139,13 @@ for(i in seq_along(tpm_list)) {
  p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Taxon)) +
     geom_area() +
     ylab("Taxon relative Abundance") +
+    scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     xlab("Generation") +
     labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
   
    p
-   #ggsave(filename = paste0(visuals_path,"Lpla_3strains_bbmap_",names(df_list)[i],".png"), width = 6, height = 4, dpi = 300)
+   ggsave(filename = paste0("Pools_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
   
   # Store the plot in the list
   plot_list[[i]] <- p
@@ -280,3 +156,23 @@ for(p in plot_list) {
 }
 
 ```
+
+```{r Isolates' strain composition}
+
+
+ggplot(tpm_i_long, aes(x = generation, y = TPM, fill = Taxon)) +
+    geom_area() +
+    ylab("Taxon relative Abundance") +
+    scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    xlab("Generation") +
+    labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
+
+
+
+
+
+
+
+```
+
