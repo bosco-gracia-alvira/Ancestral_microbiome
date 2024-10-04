@@ -27,6 +27,7 @@ library(pheatmap)
 reads_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics/reads_mapped.tsv"
 uniq_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics/uniq_mapped.tsv"
 size_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics/genome_size.tsv"
+i_metadata <- ""
 visuals_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Lpla_dynamics"
 
 # Load the coverage, sort the samples alphanumerically and make them row names
@@ -71,19 +72,19 @@ colSums(tpm)
 
 # Subset columns that start with "i"
 tpm_i <- tpm %>% select(starts_with("i"))
-tpm_i <- rownames_to_column(tpm_i, var = "Taxon")
+tpm_i <- rownames_to_column(tpm_i, var = "Strain")
 
 # Subset columns that do not start with "i"
 tpm_pools <- tpm %>% select(-starts_with("i"))
-tpm_pools <- rownames_to_column(tpm_pools, var = "Taxon")
+tpm_pools <- rownames_to_column(tpm_pools, var = "Strain")
 
 # Melt the dataframe to long format
-tpm_i_long <- reshape2::melt(tpm_i, id.vars = "Taxon", variable.name = "Sample", value.name = "TPM")
-tpm_pools_long <- reshape2::melt(tpm_pools, id.vars = "Taxon", variable.name = "Sample", value.name = "TPM")
+tpm_i_long <- reshape2::melt(tpm_i, id.vars = "Strain", variable.name = "Sample", value.name = "TPM")
+tpm_pools_long <- reshape2::melt(tpm_pools, id.vars = "Strain", variable.name = "Sample", value.name = "TPM")
 
 # Set the factor levels of the strains
-tpm_i_long$Taxon <- factor(tpm_i_long$Taxon, levels = c("S103","S239","B89"))
-tpm_pools_long$Taxon <- factor(tpm_pools_long$Taxon, levels = c("S103","S239","B89"))
+tpm_i_long$Strain <- factor(tpm_i_long$Strain, levels = c("S103","S239","B89"))
+tpm_pools_long$Strain <- factor(tpm_pools_long$Strain, levels = c("S103","S239","B89"))
 
 # Based on the sample name, we create two new columns: Generation and Temperature
 tpm_i_long <- tpm_i_long %>%
@@ -136,13 +137,13 @@ plot_list <- list()
 # We iterate to create a ggplot object for each series
 for(i in seq_along(tpm_list)) {
   # Create a plot for each data frame
- p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Taxon)) +
+ p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Strain)) +
     geom_area() +
-    ylab("Taxon relative Abundance") +
+    ylab("Strain relative Abundance") +
     scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     xlab("Generation") +
-    labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
+    labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
   
    p
    ggsave(filename = paste0("Pools_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
@@ -160,13 +161,13 @@ for(p in plot_list) {
 ```{r Isolates' strain composition}
 
 
-ggplot(tpm_i_long, aes(x = generation, y = TPM, fill = Taxon)) +
+ggplot(tpm_i_long, aes(x = generation, y = TPM, fill = Strain)) +
     geom_area() +
-    ylab("Taxon relative Abundance") +
+    ylab("Strain relative Abundance") +
     scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     xlab("Generation") +
-    labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
+    labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
 
 
 
