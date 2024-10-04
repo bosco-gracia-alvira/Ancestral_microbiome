@@ -35,6 +35,17 @@ then
   mkdir "$LOGS"
 fi
 
+# Create the isolates metadata used later for plotting
+cat "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_503/metadata.tsv" > "$WORKDIR"/metadata.tmp
+echo "" >> "$WORKDIR"/metadata.tmp
+tail -n +2 "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_591/metadata.tsv" >> "$WORKDIR"/metadata.tmp
+echo "" >> "$WORKDIR"/metadata.tmp
+tail -n +2 "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_643/metadata.tsv" >> "$WORKDIR"/metadata.tmp
+echo "" >> "$WORKDIR"/metadata.tmp
+tail -n +2 "/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly/Pool_644/metadata.tsv" >> "$WORKDIR"/metadata.tmp
+awk -F'\t' 'NR==1 {header=$0; next} {data[$3]=$0} END {print header; for (name in data) print data[name]}' "$WORKDIR"/metadata.tmp > "$WORKDIR"/metadata.tsv
+rm "$WORKDIR"/*.tmp
+
 # Create the genomes folder and set the path to it
 if [[ ! -d "$GENOMES" ]]
 then
