@@ -27,7 +27,7 @@ library(pheatmap)
 reads_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics/reads_mapped.tsv"
 uniq_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics/uniq_mapped.tsv"
 size_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics/genome_size.tsv"
-i_metadata <- ""
+metadata_isolates_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics/metadata.tsv"
 visuals_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Lpla_dynamics"
 
 # Load the coverage, sort the samples alphanumerically and make them row names
@@ -87,15 +87,6 @@ tpm_i_long$Strain <- factor(tpm_i_long$Strain, levels = c("S103","S239","B89"))
 tpm_pools_long$Strain <- factor(tpm_pools_long$Strain, levels = c("S103","S239","B89"))
 
 # Based on the sample name, we create two new columns: Generation and Temperature
-tpm_i_long <- tpm_i_long %>%
-  mutate(
-    generation = as.numeric(str_extract(Sample, "(?<=F)\\d+")),
-    temperature = case_when(
-      str_detect(Sample, "h") ~ "hot",
-      str_detect(Sample, "c") ~ "cold",
-      str_detect(Sample, "i") ~ "isolate")
-  )
-
 tpm_pools_long <- tpm_pools_long %>%
   mutate(
     generation = as.numeric(str_extract(Sample, "(?<=F)\\d+")),
@@ -136,18 +127,25 @@ plot_list <- list()
 
 # We iterate to create a ggplot object for each series
 for(i in seq_along(tpm_list)) {
+  
+  # Open a graphics device (e.g., PNG)
+  png(filename = paste0("Pools_",names(tpm_list)[i],".png"))
+  
+  
   # Create a plot for each data frame
- p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Strain)) +
-    geom_area() +
-    ylab("Strain relative Abundance") +
-    scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    xlab("Generation") +
-    labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
+  p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Strain)) +
+      geom_area() +
+      ylab("Strain relative Abundance") +
+      scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+      xlab("Generation") +
+      labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
+
+  ggsave(filename = paste0("Pools_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 12, height = 6, dpi = 300)
   
-   p
-   ggsave(filename = paste0("Pools_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
-  
+  # Close the graphics device
+  dev.off()
+
   # Store the plot in the list
   plot_list[[i]] <- p
 }
@@ -160,20 +158,36 @@ for(p in plot_list) {
 
 ```{r Isolates' strain composition}
 
+# Import the metadata information of the isolates
+metadata_isolates <- fread(metadata_isolates_path, header=T)
 
-ggplot(tpm_i_long, aes(x = generation, y = TPM, fill = Strain)) +
-    geom_area() +
-    ylab("Strain relative Abundance") +
-    scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    xlab("Generation") +
-    labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
+# Rename sample to Sample to match the tpm Sample names
+metadata_isolates <- metadata_isolates %>%
+                        select(sample, Temperature, Generation) %>%
+                        rename(Sample = sample) %>%
+                        mutate(Sample = paste0("i",Sample))
+metadata_isolates$Source <- "Isolate"
 
+# Merge TPM and metadata
+tpm_i_long_merged <- merge(tpm_i_long,metadata_isolates, by="Sample")
 
+# Open a graphics device (e.g., PNG)
+png(filename = "Isolates_composition.png")
 
+# Plot the strain abundance of each isolate
+Isolates_plot <- ggplot(tpm_i_long_merged, aes(x = Sample, y = TPM, fill = Strain)) +
+                      geom_bar(stat = "identity", position = "stack") +
+                      ylab("Strain relative Abundance") +
+                      scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
+                      theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+                      xlab("Generation") +
+                      labs(fill = "Strain", title = "Sample")
 
+  ggsave(filename = "Isolates_composition.png", plot = Isolates_plot, path = visuals_path, width = 15, height = 6, dpi = 300)
+  
+  # Close the graphics device
+  dev.off()
 
-
-
+Isolates_plot
 ```
 
