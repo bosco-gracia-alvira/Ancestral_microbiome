@@ -188,6 +188,7 @@ for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
 do
   echo -e "${j}" > "$WORKDIR"/${j}_reads.col
   echo -e "${j}" > "$WORKDIR"/${j}_uniq.col
+  echo -e "${j}" > "$WORKDIR"/${j}_MedCov.col
 done
 
 for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
@@ -214,6 +215,19 @@ do
     # Extract the number of reads mapped uniquely to the genome (with MAPQ>3) and add it to ""$WORKDIR"/${j}_uniq.tmp"
     samtools view -c -F 4 -q 4 "$MAPPED"/${i}/${j}.bam >> "$WORKDIR"/${j}_uniq.col
 
+    # Extract the median coverage of the species in that sample
+    samtools depth -a "$MAPPED"/${i}/${j}.bam | \
+      awk '{print $3}' | sort -n | awk '{
+        count[NR] = $1;
+        }
+        END {
+            if (NR % 2) {
+                median = count[(NR + 1) / 2];
+            } else {
+                median = (count[NR / 2] + count[NR / 2 + 1]) / 2;
+            }
+            print median;
+        }' >> "$WORKDIR"/${j}_MedCov.col
   done 
 
 done
@@ -221,6 +235,7 @@ done
 paste "$WORKDIR"/genome_name.col "$WORKDIR"/genome_size.col > "$WORKDIR"/genome_size.tsv
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_reads.col > "$WORKDIR"/reads_mapped.tsv
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_uniq.col > "$WORKDIR"/uniq_mapped.tsv
+paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_MedCov.col > "$WORKDIR"/MedCov.tsv
 
 rm -r "$WORKDIR"/*.col
 
