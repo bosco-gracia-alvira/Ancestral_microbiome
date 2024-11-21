@@ -102,13 +102,14 @@ bowtie2-build --threads 16 "$GENOMES"/combined.fa "$GENOMES"/combined
 
 # Competitive mapping against each of the reads sets
 numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
+processed=1
 echo -e "Starting competitive mapping of ${numsamples} samples"
 
 for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
 do
   
   name=$(echo "$i" | cut -d "_" -f1)
-  echo -e "Mapping sample ${name}"
+  echo -e "Mapping sample ${name} (${processed}/${numsamples})"
 
   # Create the results folder
   mkdir -p "$MAPPED"/${name}
@@ -167,6 +168,8 @@ do
   rm "$MAPPED"/${name}/combined_sorted.bam
   rm "$MAPPED"/${name}/combined_sorted.bam.bai
   rm "$MAPPED"/${name}/header.sam
+
+    processed=$((processed+1))
 done
 
 # This chunk calculates the statistics that we are intersted in:
