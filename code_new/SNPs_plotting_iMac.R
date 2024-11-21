@@ -14,9 +14,9 @@ knitr::opts_knit$set(root.dir = paste0("/Users/bgracia/PopGen Dropbox/Martin McF
 library(lattice)
 library(data.table)
 library(ggplot2)
-library(dplyr)
 library(tidyverse)
 library(stringr)
+library(dplyr)
 
 #######################################
 
@@ -34,6 +34,12 @@ freq <- fread(paste0(data_path,"/",reply,".freq"),sep="\t",header=T, colClasses 
 colnames(freq) <- gsub("^#", "", colnames(freq))          # Remove "#"
 colnames(freq) <- gsub("^.*\\[.*?\\]", "", colnames(freq))  # Remove anything between brackets
 colnames(freq) <- gsub(":AD$", "", colnames(freq))        # Remove ":AD"
+
+# Remove four isolates that I know that are contaminated and have intermediate allele frequencies
+if (reply == "s__Lactiplantibacillus_plantarum") {
+  freq <- freq %>%
+    select(-iX79, -iX81, -iX595, -iX371)
+}
 
 #######################################
 
@@ -96,8 +102,7 @@ median_SFS <- SFS %>%
     median_SFS = median(as.numeric(RO), na.rm = TRUE),
     Total = sum(as.numeric(RO)),
     No0 = sum(as.numeric(RO) != 0, na.rm = TRUE),
-    percent = No0/Total
-  ) %>%
+    percent = No0/Total) %>%
   rename(name = Sample)
 
 ggplot(median_SFS, aes(x = name, y = percent)) +
@@ -151,6 +156,12 @@ metadata_isolates <- metadata_isolates %>%
                         rename(name = sample) %>%
                         mutate(name = paste0("i",name))
 metadata_isolates$Source <- "Isolate"
+
+# Remove four isolates that I know that are contaminated and have intermediate allele frequencies
+if (reply == "s__Lactiplantibacillus_plantarum") {
+  metadata_isolates <- metadata_isolates %>%
+    filter(!name %in% c("iX79", "iX81", "iX595", "iX371"))
+}
 
 metadata_pools <- as.data.frame(rownames(freq_asin)[grepl("^cF|^hF", rownames(freq_asin))])
 colnames(metadata_pools) <- "name"
@@ -206,7 +217,7 @@ png(filename = paste0("PCA_temp_",reply,".png"))
 # Plot the PCA colouring the samples by isolation temperature regime
 PCA_temp <- ggplot() +
                 geom_point(data = pca_isolate, aes(x = PC1, y = PC2, color = Temperature, shape = Source), size = 1, alpha = 0.4) +
-                geom_text(data = pca_isolate, aes(x = PC1, y = PC2, label = name, color = Temperature), size = 1.5, hjust = -0.5) +
+                #geom_text(data = pca_isolate, aes(x = PC1, y = PC2, label = name, color = Temperature), size = 1.5, hjust = -0.5) +
                 geom_point(data = pca_pool, aes(x = PC1, y = PC2, color = Temperature, shape = Source), size = 2) +
                 geom_text(data = pca_pool, aes(x = PC1, y = PC2, label = name, color = Temperature), size = 1.5, hjust = -0.5) +
                 labs(
