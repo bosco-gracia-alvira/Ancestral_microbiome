@@ -125,9 +125,9 @@ do
   # If the sample is an isolates genome (starts with "i"), keep only the first field, else keep the two first fields
   if [[ "$i" == i* ]]
   then
-  name=$(echo "$i" | cut -d "_" -f1)
+    name=$(echo "$i" | cut -d "_" -f1)
   else
-  name=$(echo "$i" | cut -d "_" -f1,2)
+    name=$(echo "$i" | cut -d "_" -f1,2)
   fi
 
   echo -e "Mapping sample ${name} (${processed}/${numsamples})"
@@ -223,9 +223,12 @@ do
 done
 
 # For each sample...
-for i in $(basename -a "$RAW_READS"/*_1.fq.gz | cut -d "_" -f1)
+processed=1
+
+for i in $(basename -a "$MAPPED"/*)
 do
 
+  echo -e "Extracting reads from sample ${i} (${processed}/${numsamples})"
   # Add the sample name to the file "sample_name.tmp"
   echo ${i} >> "$WORKDIR"/sample_name.col
 
