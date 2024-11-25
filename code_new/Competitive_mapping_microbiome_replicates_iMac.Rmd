@@ -1,0 +1,292 @@
+---
+title: "Competitive_mapping_microbiome"
+author: "Bosco Gracia Alvira"
+date: "2024-08-29"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome")
+knitr::opts_chunk$set(echo = FALSE)
+library(lattice)
+library(data.table)
+library(Biostrings)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(stringr)
+library(gtools)
+library(pheatmap)
+
+```
+
+```{r Set the paths}
+
+# Paths to the files that we want to import
+reads_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome_replicates/reads_mapped.tsv"
+uniq_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome_replicates/uniq_mapped.tsv"
+size_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome_replicates/genome_size.tsv"
+medcov_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome_replicates/MedCov.tsv"
+colour_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome_replicates/genome_colours.tsv"
+visuals_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Competitive_mapping_microbiome_replicates"
+
+```
+
+```{r Filtering of false positives}
+# There are some taxa that we have "isolated" but could be contamination. We remove all the taxa that have a median coverage of 0 in all the pools.
+
+# Load median coverage of each taxon in each sample, remove isolates information
+medcov <- as.data.frame(fread(medcov_path)) 
+medcov <- medcov %>%
+              filter(!grepl("^i", Sample)) %>%
+              column_to_rownames(var = "Sample")
+
+# Target the taxa with a median value of 0 in ALL the poolseqs
+false_taxa <- names(medcov)[apply(medcov, 2, function(col) all(col == 0))]
+
+```
+
+```{r Loading the data}
+# Load the coverage
+coverage <- fread(uniq_path, header=T)
+# Sort the samples alphanumerically
+coverage$Sample <- factor(coverage$Sample , levels = mixedsort(coverage$Sample))
+coverage <- as.data.frame(coverage[order(coverage$Sample), ])
+# Make them row names
+row.names(coverage) <- coverage$Sample
+coverage$Sample <- NULL
+# Transpose the table so taxon names are the columns
+coverage <- as.data.frame(t(coverage))
+# Remove the false taxa
+coverage <- coverage %>%
+  filter(!rownames(coverage) %in% false_taxa)
+
+# Load genome sizes info
+size <- as.data.frame(fread(size_path))
+# Filter the false taxa from the Genome column
+size <- size %>%
+  filter(!Genome %in% false_taxa)
+# Turn the sizes into numbers and transform them to kb
+size$Size <- gsub(",", "", size$Size)
+size$Size <- as.numeric(size$Size)
+# Make a vector for the sizes
+size_vec <- as.vector(size[, 2])
+
+```
+
+
+```{r Reads normalisation to tpm}
+
+# We normalise the data using tpm, a technique usually used for transcriptomic data
+
+# First we divide the number of reads mapped to each genome by the genome size, and multiply by 1000 (kb)
+size_norm <- sweep(coverage, 1, size_vec, FUN = "/") * 1e3
+
+# Counts normalised by genome size are then multiplied by 10^6 and divided by the total number of reads in each sample
+tpm <- as.data.frame(t(t(size_norm)*1e6/ colSums(size_norm)))
+
+# As a result, all columns (samples) add up to 10^6, regardless of their coverage
+colSums(tpm)
+
+```
+
+
+```{r Data subsets}
+
+# We divide the table into isolates and pools columns
+
+# Subset columns that start with "i"
+tpm_i <- tpm %>% select(starts_with("i"))
+tpm_i <- rownames_to_column(tpm_i, var = "Taxon")
+
+# Subset columns that do not start with "i"
+tpm_pools <- tpm %>% select(-starts_with("i"))
+tpm_pools <- rownames_to_column(tpm_pools, var = "Taxon")
+
+# Melt the dataframe to long format
+tpm_i_long <- reshape2::melt(tpm_i, id.vars = "Taxon", variable.name = "Sample", value.name = "TPM")
+tpm_pools_long <- reshape2::melt(tpm_pools, id.vars = "Taxon", variable.name = "Sample", value.name = "TPM")
+
+# Based on the sample name, we create three new columns: Generation, Replicate and Temperature
+tpm_i_long <- tpm_i_long %>%
+  mutate(
+    generation = as.numeric(str_extract(Sample, "(?<=F)\\d+")),
+    replicate = str_extract(Sample, "(?<=_)\\w+$"),
+    temperature = case_when(
+      str_detect(Sample, "h") ~ "hot",
+      str_detect(Sample, "c") ~ "cold",
+      str_detect(Sample, "i") ~ "isolate")
+  )
+
+tpm_pools_long <- tpm_pools_long %>%
+  mutate(
+    generation = as.numeric(str_extract(Sample, "(?<=F)\\d+")),
+    replicate = str_extract(Sample, "(?<=_)\\w+$"),
+    temperature = case_when(
+      str_detect(Sample, "h") ~ "hot",
+      str_detect(Sample, "c") ~ "cold",
+      str_detect(Sample, "i") ~ "isolate")
+  )
+
+# Plot the distribution of counts
+ggplot(tpm_i_long, aes(x = TPM)) +
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Distribution of TPM Counts", x = "TPM", y = "Frequency")
+
+# How many elements have less than 10000 reads?
+tpm_i_long %>% filter(TPM < 10000) %>% nrow()
+nrow(tpm_i_long)
+
+# Plot the distribution of counts
+ggplot(tpm_pools_long, aes(x = TPM)) +
+  geom_histogram(fill = "blue", color = "black", alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Distribution of TPM Counts", x = "TPM", y = "Frequency")
+
+# How many elements have less than 10000 TPMs in the pools?
+tpm_pools_long %>% filter(TPM < 10000) %>% nrow()
+nrow(tpm_pools_long)
+
+```
+
+```{r Merge low abundance taxa}
+
+# How many taxa have less than 10000 TPMs in ALL the samples (less than 1% abundance)?
+# We extract the names of these taxa
+sum(apply(tpm_pools[,-1], 1, function(row) all(row < 10000)))
+other_taxa <- apply(tpm_pools[,-1], 1, function(row) all(row < 10000))
+other_taxa <- tpm_pools[other_taxa, 1]
+
+tpm_pools_long$Taxon <- ifelse(tpm_pools_long$Taxon %in% other_taxa, "Other", tpm_pools_long$Taxon)
+tpm_pools_long <- aggregate(TPM ~ Sample + Taxon + generation + replicate + temperature, data = tpm_pools_long, sum)
+
+```
+
+```{r Colour the taxa}
+# Read the genome_colours.tsv file
+colour <- as.data.frame(fread(colour_path))
+# Sort by Order column
+colour$Order <- as.numeric(colour$Order)
+# Filter the false taxa
+colour <- colour %>%
+  filter(!Taxon %in% false_taxa)
+
+# Merge the colour and order info to the table
+tpm_pools_long_merged <- tpm_pools_long %>%
+  left_join(colour, by = "Taxon")
+
+# Arrange the data frame by Order and then by Sample
+tpm_pools_long_merged <- tpm_pools_long_merged %>%
+  arrange(Order, Sample)
+
+# Set the factor levels of Taxon based on the arranged order
+tpm_pools_long_merged$Taxon <- factor(tpm_pools_long_merged$Taxon, levels = unique(tpm_pools_long_merged$Taxon))
+
+```
+
+```{r Trajectory over the time - replicates}
+
+# The table has information from 20 different time series (2 regimes * 10 replicates).
+#We create a list in which each series is an element.
+
+# Create a unique identifier for each time series (TemperatureReplicate)
+tpm_pools_long_merged$list <- paste0(tpm_pools_long_merged$temperature,tpm_pools_long_merged$replicate)
+
+# Split the database based on this identifier
+tpm_list <- split(tpm_pools_long_merged, tpm_pools_long_merged$list)
+
+
+tpm_list <- tpm_list[names(tpm_list) != "isolateNA"]
+plot_list <- list()
+
+# We iterate to create a ggplot object for each series
+for(i in seq_along(tpm_list)) {
+  
+  # Open a graphics device (e.g., PNG)
+  png(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"))
+  
+  # Create a plot for each data frame
+ p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Taxon)) +
+    geom_area() +
+    ylab("Taxon relative Abundance") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    scale_fill_manual(values = setNames(tpm_list[[i]]$Colour, tpm_list[[i]]$Taxon)) +
+    xlab("Generation") +
+    labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
+  
+   p
+  #Save the plot using ggsave
+  ggsave(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
+
+  # Close the graphics device
+  dev.off()
+   #ggsave(filename = paste0(visuals_path,"Microbiome_dynamics",,".png"), width = 6, height = 4, dpi = 300)
+  
+  # Store the plot in the list
+  plot_list[[i]] <- p
+}
+
+for(p in plot_list) {
+  print(p)
+}
+
+```
+
+```{r Trajectory over the time - temperature}
+
+# In this chunk we merge the samples from all the replicates.
+
+tpm_pools_long_temp <- tpm_pools_long_merged %>%
+  group_by(Taxon, generation, temperature, Colour, Order) %>%
+  summarize(
+    mean_TPM = mean(TPM, na.rm = TRUE),
+    sd_TPM = sd(TPM, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# The table has information from 2 different time series, one per regime.
+#We create a list in which each series is an element.
+
+# Split the database based on the temperature regime
+tpm_list <- split(tpm_pools_long_temp, tpm_pools_long_temp$temperature)
+
+
+tpm_list <- tpm_list[names(tpm_list) != "isolateNA"]
+plot_list <- list()
+
+# We iterate to create a ggplot object for each series
+for(i in seq_along(tpm_list)) {
+  
+  # Open a graphics device (e.g., PNG)
+  png(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"))
+  
+  # Create a plot for each data frame
+ p <- ggplot(tpm_list[[i]], aes(x = generation, y = mean_TPM, fill = Taxon)) +
+    geom_area() +
+    ylab("Taxon relative Abundance") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    scale_fill_manual(values = setNames(tpm_list[[i]]$Colour, tpm_list[[i]]$Taxon)) +
+    xlab("Generation") +
+    labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
+  
+   p
+  #Save the plot using ggsave
+  ggsave(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
+
+  # Close the graphics device
+  dev.off()
+   #ggsave(filename = paste0(visuals_path,"Microbiome_dynamics",,".png"), width = 6, height = 4, dpi = 300)
+  
+  # Store the plot in the list
+  plot_list[[i]] <- p
+}
+
+for(p in plot_list) {
+  print(p)
+}
+
+```
+
+
+
