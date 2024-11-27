@@ -4,6 +4,8 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # The first argument will be the value of $REPLY
 reply <- args[1]
+reply <- "s__Lactiplantibacillus_plantarum"
+
 
 # Print the value of reply (for debugging purposes)
 print(paste("The following taxon will be used:", reply))
@@ -103,7 +105,7 @@ median_SFS <- SFS %>%
     Total = sum(as.numeric(RO)),
     No0 = sum(as.numeric(RO) != 0, na.rm = TRUE),
     percent = No0/Total) %>%
-  rename(name = Sample)
+    dplyr::rename(name = Sample)
 
 ggplot(median_SFS, aes(x = name, y = percent)) +
   geom_bar(stat = "identity") +
@@ -153,7 +155,7 @@ SFS_plot
 metadata_isolates <- fread(metadata_isolates_path, header=T)
 metadata_isolates <- metadata_isolates %>%
                         select(sample, Temperature, Generation) %>%
-                        rename(name = sample) %>%
+                        dplyr::rename(name = sample) %>%
                         mutate(name = paste0("i",name))
 metadata_isolates$Source <- "Isolate"
 
@@ -216,7 +218,7 @@ png(filename = paste0("PCA_temp_",reply,".png"))
 
 # Plot the PCA colouring the samples by isolation temperature regime
 PCA_temp <- ggplot() +
-                geom_point(data = pca_isolate, aes(x = PC1, y = PC2, color = Temperature, shape = Source), size = 1, alpha = 0.4) +
+                geom_point(data = pca_isolate, aes(x = PC1, y = PC2, color = Temperature, shape = Source), size = 2, alpha = 0.9) +
                 #geom_text(data = pca_isolate, aes(x = PC1, y = PC2, label = name, color = Temperature), size = 1.5, hjust = -0.5) +
                 geom_point(data = pca_pool, aes(x = PC1, y = PC2, color = Temperature, shape = Source), size = 2) +
                 geom_text(data = pca_pool, aes(x = PC1, y = PC2, label = name, color = Temperature), size = 1.5, hjust = -0.5) +
@@ -239,7 +241,7 @@ png(filename = paste0("PCA_SFS_",reply,".png"))
 
 # Plot the PCA colouring the samples by median AF
 PCA_SFS <- ggplot() +
-              geom_point(data = pca_isolate, aes(x = PC1, y = PC2, color = median_SFS, shape = Source), size = 1, alpha = 0.4) +
+              geom_point(data = pca_isolate, aes(x = PC1, y = PC2, color = median_SFS, shape = Source), size = 2, alpha = 0.4) +
               geom_text(data = pca_isolate, aes(x = PC1, y = PC2, label = name, color = median_SFS), size = 1.5, hjust = -0.5) +
               geom_point(data = pca_pool, aes(x = PC1, y = PC2, color = median_SFS, shape = Source), size = 2) +
               geom_text(data = pca_pool, aes(x = PC1, y = PC2, label = name, color = median_SFS), size = 1.5, hjust = -0.5) +
