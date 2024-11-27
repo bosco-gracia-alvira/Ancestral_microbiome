@@ -229,6 +229,7 @@ for i in $(basename -a "$MAPPED"/*)
 do
 
   echo -e "Extracting reads from sample ${i} (${processed}/${numsamples})"
+  processed=$((processed+1))
   # Add the sample name to the file "sample_name.tmp"
   echo ${i} >> "$WORKDIR"/sample_name.col
 
@@ -256,7 +257,7 @@ do
             print median;
         }' >> "$WORKDIR"/${j}_MedCov.col
   done 
-
+  
 done
 
 paste "$WORKDIR"/genome_name.col "$WORKDIR"/genome_size.col > "$WORKDIR"/genome_size.tsv
