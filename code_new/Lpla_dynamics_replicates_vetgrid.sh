@@ -117,7 +117,7 @@ done < "$WORKDIR"/isolates.tsv
 bowtie2-build --threads 16 "$GENOMES"/combined.fa "$GENOMES"/combined
 
 # Competitive mapping mapping against each of the reads sets
-for i in "$RAW_READS"/*_1.fq.gz
+for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
 do
     # Declare the variable name
     # If the sample is an isolates genome (starts with "i"), keep only the first field, else keep the two first fields
@@ -216,16 +216,17 @@ do
     seqkit stats "$GENOMES"/"${genome}" | awk 'NR==2 {print $7}' >> "$WORKDIR"/genome_size.col
 done
 
+numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
+processed=1
+
 # For each sample...
-for i in "$RAW_READS"/*_1.fq.gz
+for i in $(basename -a "$MAPPED"/*)
 do
-    # If the sample is an isolates genome (starts with "i"), keep only the first field, else keep the two first fields
-    if [[ "$i" == i* ]]
-    then
-        name=$(echo "$i" | cut -d "_" -f1)
-    else
-        name=$(echo "$i" | cut -d "_" -f1,2)
-    fi
+    
+    # Define the variables
+    sample=${i}
+    echo -e "Extracting reads from sample ${sample} (${processed}/${numsamples})"
+    processed=$((processed+1))
 
     # Add the sample name to the file "sample_name.tmp"
     echo ${sample} >> "$WORKDIR"/sample_name.col
