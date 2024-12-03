@@ -30,5 +30,5 @@ do
         "$LOCATION_REFERENCES"/"$i"/"$i".fasta
 done
 
-# Integrate the annotations into the vcf files mapped to the same reference pangenomes
+# Integrate the annotations into the vcf files mapped to the same reference pangenomes using snpeff
 
