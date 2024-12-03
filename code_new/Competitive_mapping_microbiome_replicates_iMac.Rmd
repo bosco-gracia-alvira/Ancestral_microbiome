@@ -41,8 +41,9 @@ medcov <- medcov %>%
               filter(!grepl("^i", Sample)) %>%
               column_to_rownames(var = "Sample")
 
-# Target the taxa with a median value of 0 in ALL the poolseqs
+# Target the taxa with a median value of 0 in ALL the poolseqs and Staphylococcus_hominis, that was not found in the amplicon sequencing survey
 false_taxa <- names(medcov)[apply(medcov, 2, function(col) all(col == 0))]
+false_taxa <- c(false_taxa, "s__Staphylococcus_hominis")
 
 ```
 
