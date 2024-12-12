@@ -30,6 +30,8 @@ library(ggplot2)
 library(dplyr)
 library(tidyverse)
 library(stringr)
+library(VariantAnnotation)
+library(qvalue)
 
 ```
 
@@ -40,40 +42,52 @@ data_path <- paste0("/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbo
 metadata_isolates_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/SNPs_analysis/metadata.tsv"
 visuals_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/SNPs_analysis"
 
-# freq is the table that comes from the vcf query that contains allele frequencies for each sample
-freq <- fread(paste0(data_path,"/",reply,".freq"),sep="\t",header=T, colClasses = "character")
+# Read the vcf files with and without annotations
+vcf <- readVcf(paste0(data_path,"/",reply,".vcf"))
+annotations <- readVcf(paste0(data_path,"/",reply,"_annotated.vcf"))
 
-# Make the headers pretty :)
-colnames(freq) <- gsub("^#", "", colnames(freq))          # Remove "#"
-colnames(freq) <- gsub("^.*\\[.*?\\]", "", colnames(freq))  # Remove anything between brackets
-colnames(freq) <- gsub(":AD$", "", colnames(freq))        # Remove ":AD"
+# Read the allele frequency data from each sample
+AD_df <- as.data.frame(geno(vcf)$AD)
+AD_df$rowname <- row.names(AD_df)
+AD_df <- AD_df %>%
+          separate(rowname, into = c("CHROM","POS_REF_ALT"), sep = ":") %>%
+          separate(POS_REF_ALT, into = c("POS","REF_ALT"), sep = "_", extra = "merge") %>%
+          separate(REF_ALT, into = c("REF", "ALT"), sep = "/") %>%
+          dplyr::select(CHROM, POS, REF, ALT, everything())
+          
+
+# Remove four isolates that I know that are contaminated and have intermediate allele frequencies
+if (reply == "s__Lactiplantibacillus_plantarum") {
+  AD_df <- AD_df %>%
+    dplyr::select(-iX79, -iX81, -iX595, -iX371)
+}
 
 ```
 
 
 ```{r Process the frequency table}
 
-# Melt the dataframe to long format
-freq_long <- data.table::melt(freq, id.vars = colnames(freq)[1:4], variable.name = "Sample", value.name = "AF")
+# Transform the data into a data.table and melt the dataframe to long format
+AD_df <- as.data.table(AD_df)
+freq_long <- data.table::melt(AD_df, id.vars = colnames(AD_df)[1:4], variable.name = "Sample", value.name = "AF")
 
-# Split the AF column into Reference and alternative using "," as splitting element
-freq_long <- freq_long[, c("RO", "AO") := tstrsplit(AF, ",")]
-
-# Turn the new columns numeric
-freq_long <- freq_long[, `:=`(RO = as.numeric(RO), AO = as.numeric(AO))]
+# Split the AF column into reference (RO) and alternative (AF)
+freq_long <- freq_long %>%
+  mutate(RF = map_int(AF, 1),
+         AF = map_int(AF, 2))
 
 # Calculate the summed allele depth (SAD) and relative frequencies from absolute number of counts
-freq_long <- freq_long[, "SAD" := (RO + AO)]
-freq_long <- freq_long[, `:=`(RO = RO / (RO + AO), AO = AO / (RO + AO))]
+freq_long <- freq_long[, "SAD" := (RF + AF)]
+freq_long <- freq_long[, `:=`(RF = RF / (RF + AF), AF = AF / (RF + AF))]
 
 # Create a new column with unique position information
 freq_long <- freq_long %>%
-  mutate(CHROM_POS = paste(CHROM, POS, sep = "_"))
+  mutate(CHROM_POS = paste0(CHROM,":",POS))
 
 # Make the table wide again
 freq_wide <- freq_long %>%
-  select(Sample, CHROM_POS, RO) %>%  # Select relevant columns
-  pivot_wider(names_from = CHROM_POS, values_from = RO) %>%  # Pivot to wide format
+  dplyr::select(Sample, CHROM_POS, RF) %>%  # Select relevant columns
+  pivot_wider(names_from = CHROM_POS, values_from = RF) %>%  # Pivot to wide format
   column_to_rownames(var = "Sample")  # Set Sample as row names
 
 # Remove the columns (SNPs) that are NaN in at least 1 sample
@@ -92,13 +106,13 @@ freq_asin <- 2*asin(sqrt(freq_wide))
 ```{r SFS calculation}
 
 # We calculate the site frequency spectrum for each sample, as well as the median allele frequency
-SFS <- freq_long[,c("Sample","RO")] %>%
-          mutate(RO = ifelse(RO > 0.5, 1 - RO, RO)) %>%
+SFS <- freq_long[,c("Sample","RF")] %>%
+          mutate(RF = ifelse(RF > 0.5, 1 - RF, RF)) %>%
           na.omit()
 
 SFS <- SFS %>%
   group_by(Sample) %>%
-  mutate(medRO = median(as.numeric(RO))) %>%
+  mutate(medRF = median(as.numeric(RF))) %>%
   mutate(allele_count = n()) %>%
   mutate(Title = gsub("_contigs$", "", Sample)) %>%
   ungroup()
@@ -106,9 +120,9 @@ SFS <- SFS %>%
 median_SFS <- SFS %>%
   group_by(Sample) %>%
   summarize(
-    median_SFS = median(as.numeric(RO), na.rm = TRUE),
-    Total = sum(as.numeric(RO)),
-    No0 = sum(as.numeric(RO) != 0, na.rm = TRUE),
+    median_SFS = median(as.numeric(RF), na.rm = TRUE),
+    Total = sum(as.numeric(RF)),
+    No0 = sum(as.numeric(RF) != 0, na.rm = TRUE),
     percent = No0/Total
   ) %>%
   dplyr::rename(name = Sample)
@@ -125,10 +139,10 @@ ggplot(median_SFS, aes(x = name, y = percent)) +
 png(filename = paste0("SFS_",reply,".png"))
 
 # Plot the SFS for each isolate
-SFS_plot <- ggplot(SFS, aes(x = RO)) +
+SFS_plot <- ggplot(SFS, aes(x = RF)) +
                 geom_histogram(binwidth = 0.1, boundary = 0, fill = "blue", color = "black") +
                 facet_wrap(~ Title, scales = "free_y") +
-                geom_vline(aes(xintercept = medRO), color = "red", linetype = "dashed") +
+                geom_vline(aes(xintercept = medRF), color = "red", linetype = "dashed") +
                 labs(title = paste0(reply,", SFS (Folded)"), x = "Allele Frequency (0-0.5)", y = "Count") +
                 theme_minimal() +
                 theme(
@@ -160,7 +174,7 @@ SFS_plot
 # Import the metadata of all the isolates and subset those present in the PCA
 metadata_isolates <- fread(metadata_isolates_path, header=T)
 metadata_isolates <- metadata_isolates %>%
-                        select(sample, Temperature, Generation) %>%
+                        dplyr::select(sample, Temperature, Generation) %>%
                         dplyr::rename(name = sample) %>%
                         mutate(name = paste0("i",name))
 metadata_isolates$Source <- "Isolate"
@@ -262,6 +276,196 @@ dev.off()
 # Plot here the PCAs as well
 PCA_temp
 PCA_SFS
+
+```
+
+```{r Annotation of SNPs}
+
+# Read the annotations for each variant and select the columns of interest
+annotation_df <- as.data.frame(info(annotations))
+annotation_df <- annotation_df %>%
+                      dplyr::select(IsSynonymous,IsTransition,IsGenic,AminoAcidChange,Gene,Product) %>%
+                      rownames_to_column(var = "CHROM_POS") %>%
+                      mutate(ntChange=str_sub(CHROM_POS, -3, -1)) %>% 
+                      mutate(CHROM_POS=str_sub(CHROM_POS, 1, -5)) %>% 
+                      mutate(across(where(is.list), ~ map_chr(., as.character)))
+            
+annotated_variants <- merge(freq_long, annotation_df, by="CHROM_POS")
+meta_snps <- merge(annotated_variants, metadata, by.x="Sample", by.y="name")
+
+```
+
+
+```{r Identify genotype-specific SNPs}
+
+if (reply == "s__Lactiplantibacillus_plantarum") {
+
+# Subset the isolates, create the Strain variable with the genotype of each isolate
+meta_i <- meta_snps %>%
+                filter(Source == "Isolate") %>%
+                filter(RF != "NaN") %>%
+                mutate(Genotype = case_when(
+                        Sample %in% c("iB25", "iX76", "iX371") ~ "S239",
+                        Temperature == "HOT" ~ "S239",
+                        Temperature == "BASE" ~ "B89",
+                        Temperature == "COLD" ~ "S103",
+                        Temperature == "COLD-CONSTANT" ~ "S103")) 
+
+# Proportion of the genomes from each strain that has the SNP
+p <- meta_i %>%
+  group_by(CHROM_POS, Genotype, Gene, Product) %>%
+  summarize(p = mean(RF, na.rm = TRUE)) %>%
+  pivot_wider(names_from = Genotype, values_from = p, names_prefix = "p_")
+
+# Number of genomes per strain
+N <- meta_i %>%
+  group_by(CHROM_POS, Genotype, Gene, Product) %>%
+  summarize(N = n()) %>%
+  pivot_wider(names_from = Genotype, values_from = N, names_prefix = "N_")
+
+# Expected proportion of genomes that should contain the SNP under a uniform distribution (null expectation)
+E <- meta_i %>%
+  mutate(Presence = if_else(RF > 0.5, 1, 0)) %>%
+  group_by(CHROM_POS) %>%
+  summarize(E = mean(Presence))
+
+# Join the three tables and calculate the associated_groups to each SNP, that don't follow the null expectation
+# Some SNPs are not covered in all the genomes (they are indels in some), so these I remove them as well
+pN <- p %>%
+  left_join(N, by = c("CHROM_POS", "Product")) %>%
+  rowwise() %>%
+  left_join(E, by = "CHROM_POS") %>% 
+  mutate(associated_groups = paste(names(dplyr::select(cur_data(),
+        starts_with("p_")))[which(c_across(starts_with("p_")) > E)],
+        collapse = ",")) %>%
+  ungroup() %>%
+  dplyr::select(-E) %>%
+  dplyr::mutate(accession = CHROM_POS) %>% 
+  dplyr::select(CHROM_POS, accession, Product, associated_groups, p_B89, N_B89, p_S239, N_S239, p_S103, N_S103) %>% 
+  drop_na()
+
+# Save the file
+write_tsv(pN, "~/pN.tsv")
+
+enrichment_script <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/code_new/anvi-script-enrichment-stats"
+
+args <- c(paste0("--input=~/pN.tsv"), "--output=~/enriched_SNPs.tsv")
+system2(enrichment_script, args)
+
+enriched_snps <- fread("~/enriched_SNPs.tsv", header=T)
+enriched_snps <- enriched_snps %>% 
+                    mutate(adjusted_q_value = as.numeric(adjusted_q_value)) %>% 
+                    filter(adjusted_q_value <= 0.05) %>%
+                    dplyr::select(-accession,-Product) %>% 
+                    left_join(annotation_df, by = "CHROM_POS")
+
+# Save the file
+write_tsv(enriched_snps, paste0(data_path,"/enriched_snps.tsv"))
+
+# Now we have our enriched table. We can remove the input and output from the home directory
+system2("rm", c("~/pN.tsv", "~/enriched_SNPs.tsv"))
+
+
+# For each SNP we want to turn the private allele into the reference one
+# To do this we have to modify several fields of the table for the SNPs that are associated with two groups:
+
+# This function swaps the last character with the last third character (reference and alternative alleles CHROM_POS)
+swap_nt <- function(x) {
+  ref <- str_sub(x, 1, 1)
+  alt <- str_sub(x, 3, 3)
+  str_sub(x, 3, 3) <- ref
+  str_sub(x, 1, 1) <- alt
+  x
+}
+
+swap_aa <- function(x) {
+  ref <- str_sub(x, 1, 1)
+  alt <- str_sub(x, -1, -1)
+  str_sub(x, 1, 1) <- alt
+  str_sub(x, -1, -1) <- ref
+  x
+}
+
+str_sub(enriched_snps$ntChange[18385], 3, 3)
+str_sub(enriched_snps$AminoAcidChange[18385], -1, -1)
+
+# 
+transform_associated_groups <- function(groups) {
+  case_when(
+    groups == "p_B89,p_S103" ~ "p_S239",
+    groups == "p_B89,p_S239" ~ "p_S103",
+    groups == "p_S103,p_S239" ~ "p_B89",
+    groups == "p_B89,p_S103,p_S239" ~ "ALL",
+    TRUE ~ groups
+  )
+}
+
+# Modify the columns as specified
+enriched_snps_2 <- enriched_snps %>%
+  mutate(
+    ntChange = if_else(str_detect(associated_groups, ","), swap_nt(ntChange), ntChange),
+    AminoAcidChange = if_else(str_detect(associated_groups, ","), swap_aa(AminoAcidChange), AminoAcidChange),
+    p_B89 = if_else(str_detect(associated_groups, ","), abs(p_B89 - 1), p_B89),
+    p_S239 = if_else(str_detect(associated_groups, ","), abs(p_S239 - 1), p_S239),
+    p_S103 = if_else(str_detect(associated_groups, ","), abs(p_S103 - 1), p_S103),
+    inversed = if_else(str_detect(associated_groups, ","), "inv", NA),
+    associated_groups = transform_associated_groups(associated_groups),
+    Colour = case_when(
+                          associated_groups=="p_B89" ~ "green",
+                          associated_groups=="p_S239" ~ "red",
+                          associated_groups=="p_S103"~ "blue"),
+  )
+
+
+enriched_snps %>%
+  summarise(na_count = sum(is.na(Colour)))
+
+enriched_snps %>%
+  filter((associated_groups == "p_B89" | associated_groups == "p_S103,p_S239"), IsGenic==1) %>%
+  summarise(count = n())
+
+enriched_snps %>%
+  filter((associated_groups == "p_S103" | associated_groups == "p_B89,p_S239"), IsGenic==1) %>%
+  summarise(count = n())
+
+enriched_snps %>%
+  filter((associated_groups == "p_S239" | associated_groups == "p_B89,p_S103"), IsSynonymous==0) %>%
+  summarise(count = n())
+
+meta_pool <- meta_snps %>%
+                filter(Source == "Pool") %>%
+                filter(IsSynonymous == "0") %>%
+                filter(Temperature != "COLD") %>%
+                mutate(Generation = as.numeric(sub("^F", "", Generation))) %>% 
+                left_join(enriched_snps_2, by = "CHROM_POS") %>%
+                mutate (AF = if_else(inversed == "inv", abs(AF - 1), AF),
+                        RF = if_else(inversed == "inv", abs(RF - 1), RF))
+
+
+ggplot(meta_pool, aes(x = Generation, y = RF, group = CHROM_POS, colour=Colour)) +
+              geom_line(linewidth=0.05) +
+              scale_colour_identity()
+
+}
+
+```
+
+
+
+
+
+
+```{r SNPs trajectory}
+# We want to plot the SNPs trajectories in the hot and the cold regime
+meta_pool <- meta_snps %>%
+                filter(Source == "Pool") %>%
+                filter(IsSynonymous == "0") %>%
+                filter(Temperature != "COLD") %>%
+                mutate(Generation = as.numeric(sub("^F", "", Generation)))
+
+ggplot(meta_pool, aes(x = Generation, y = RF, group = CHROM_POS)) +
+              geom_line(linewidth=0.01)
+
 
 ```
 
