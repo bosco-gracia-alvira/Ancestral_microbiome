@@ -19,6 +19,7 @@ library(ggplot2)
 library(tidyverse)
 library(stringr)
 library(dplyr)
+library(VariantAnnotation)
 
 #######################################
 
@@ -40,7 +41,7 @@ colnames(freq) <- gsub(":AD$", "", colnames(freq))        # Remove ":AD"
 # Remove four isolates that I know that are contaminated and have intermediate allele frequencies
 if (reply == "s__Lactiplantibacillus_plantarum") {
   freq <- freq %>%
-    select(-iX79, -iX81, -iX595, -iX371)
+    dplyr::select(-iX79, -iX81, -iX595, -iX371)
 }
 
 #######################################
@@ -67,7 +68,7 @@ freq_long <- freq_long %>%
 
 # Make the table wide again
 freq_wide <- freq_long %>%
-  select(Sample, CHROM_POS, RO) %>%  # Select relevant columns
+  dplyr::select(Sample, CHROM_POS, RO) %>%  # Select relevant columns
   pivot_wider(names_from = CHROM_POS, values_from = RO) %>%  # Pivot to wide format
   column_to_rownames(var = "Sample")  # Set Sample as row names
 
@@ -154,7 +155,7 @@ SFS_plot
 # Import the metadata of all the isolates and subset those present in the PCA
 metadata_isolates <- fread(metadata_isolates_path, header=T)
 metadata_isolates <- metadata_isolates %>%
-                        select(sample, Temperature, Generation) %>%
+                        dplyr::select(sample, Temperature, Generation) %>%
                         dplyr::rename(name = sample) %>%
                         mutate(name = paste0("i",name))
 metadata_isolates$Source <- "Isolate"
