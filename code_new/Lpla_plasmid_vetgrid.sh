@@ -139,7 +139,6 @@ do
 
   # Extract the coverage of the plasmid and the housekeeping gene recA
   samtools depth -r contig_2 "$MAPPED/${name}_sorted.bam" | awk -v name="$name" 'BEGIN {OFS="\t"} {print $0, name, "plasmid"}' > "$WORKDIR/${name}_cov_plasmid.tmp"
-  samtools depth -r contig_2:102018-184830 "$MAPPED/${name}_sorted.bam" | awk -v name="$name" 'BEGIN {OFS="\t"} {print $0, name, "island"}' > "$WORKDIR/${name}_cov_island.tmp"
   samtools depth -r contig_3:2097241-2098383 "$MAPPED/${name}_sorted.bam" | awk -v name="$name" 'BEGIN {OFS="\t"} {print $0, name, "recA"}' > "$WORKDIR/${name}_cov_recA.tmp"
 
   # Next iteration
@@ -147,7 +146,7 @@ do
 done
 
 # Create the header and the body of the coverage table
-echo -e "contig\tposition\tcoverage\tisolate\tgene" > "$WORKDIR/header.temp"
+echo -e "contig\tposition\tcoverage\tsample\tgene" > "$WORKDIR/header.temp"
 cat "$WORKDIR"/*.tmp > "$WORKDIR/body.temp"
 cat "$WORKDIR/header.temp" "$WORKDIR/body.temp" > "$WORKDIR/coverage.tsv"
 
