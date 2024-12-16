@@ -5,6 +5,8 @@
 ### VARIABLES
 # Set the paths
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_plasmid"
+LOCATION_COLD="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_cold"
+LOCATION_HOT="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_hot"
 VISUALS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Lpla_plasmid"
 LOCATION_ISOLATES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly"
 TAXON2SAMPLE="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/taxonomy.tsv"
@@ -41,6 +43,33 @@ then
   mkdir "$LOGS"
 fi
 
+# Link the reads from the pools to the raw reads folder
+for i in $(basename "$LOCATION_HOT"/F*)
+do
+  for j in $(seq 1 10)
+  do
+    # Only link the pool if the file exists
+    if [[ -f "$LOCATION_HOT"/${i}/${i}_${j}_noCont_1.fq.gz ]]
+    then
+      ln -s "$LOCATION_HOT"/${i}/${i}_${j}_noCont_1.fq.gz "$RAW_READS"/h${i}_${j}_1.fq.gz
+      ln -s "$LOCATION_HOT"/${i}/${i}_${j}_noCont_2.fq.gz "$RAW_READS"/h${i}_${j}_2.fq.gz
+    fi
+  done
+done
+
+for i in $(basename "$LOCATION_COLD"/F*)
+do
+  for j in $(seq 11 20)
+  do
+    # Only link the pool if the file exists
+    if [[ -f "$LOCATION_COLD"/${i}/${i}_${j}_noCont_1.fq.gz ]]
+    then
+      ln -s "$LOCATION_COLD"/${i}/${i}_${j}_noCont_1.fq.gz "$RAW_READS"/c${i}_$(($j-10))_1.fq.gz
+      ln -s "$LOCATION_COLD"/${i}/${i}_${j}_noCont_2.fq.gz "$RAW_READS"/c${i}_$(($j-10))_2.fq.gz
+    fi
+  done
+done
+
 # Select the L. plantarum isolates
 cut -f1,2 "$TAXON2SAMPLE" | grep "s__Lactiplantibacillus plantarum" | cut -f1 > "$WORKDIR/isolates.tsv"
 
@@ -61,15 +90,21 @@ bowtie2-build --threads 16 "$REFERENCE"/LplaWF.fa "$REFERENCE"/LplaWF
 
 
 # Map each isolate against the reference
-numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
+numsamples=$(basename -a "$RAW_READS"/?F*_1.fq.gz | wc -l)
 processed=1
 echo -e "Starting mapping of ${numsamples} samples"
 
-for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
+for i in $(basename -a "$RAW_READS"/?F*_1.fq.gz)
 do
 
-  name=$(echo "$i" | cut -d "_" -f1)
-  
+  # If the sample is an isolates genome (doesn't start with ?F), keep only the first field, else keep the two first fields
+  if [[ "$i" != ?F* ]]
+  then
+    name=$(echo "$i" | cut -d "_" -f1)
+  else
+    name=$(echo "$i" | cut -d "_" -f1,2)
+  fi
+
   echo -e "Mapping sample ${name} (${processed}/${numsamples})"
 
   # Map paired end reads using bowtie with stringent settings and output the result to a sam file
