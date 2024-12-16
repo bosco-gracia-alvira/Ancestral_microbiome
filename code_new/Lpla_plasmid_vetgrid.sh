@@ -1,0 +1,118 @@
+#!/bin/bash
+# This script maps all the Lpla genomes' readsets against the colonisation plasmid
+# Bosco Gracia Alvira, 2024
+
+### VARIABLES
+# Set the paths
+WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_plasmid"
+VISUALS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Lpla_plasmid"
+LOCATION_ISOLATES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly"
+TAXON2SAMPLE="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/taxonomy.tsv"
+SAMPLE2READS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/absolute_path_reads.txt"
+RAW_READS="$WORKDIR/reads"
+REFERENCE="$WORKDIR/reference"
+LOGS="$WORKDIR/logs"
+MAPPED="$WORKDIR/mapped"
+
+# Create the folder where plots will go
+if [[ ! -f "$VISUALS" ]]
+then
+    mkdir -p "$VISUALS"
+fi
+
+# Create subfolders in the working directory
+if [[ ! -d "$RAW_READS" ]]
+then
+  mkdir -p "$RAW_READS"
+fi
+
+if [[ ! -d "$REFERENCE" ]]
+then
+  mkdir -p "$REFERENCE"
+fi
+
+if [[ ! -d "$MAPPED" ]]
+then
+  mkdir -p "$MAPPED"
+fi
+
+if [[ ! -d "$LOGS" ]]
+then
+  mkdir "$LOGS"
+fi
+
+# Select the L. plantarum isolates
+cut -f1,2 "$TAXON2SAMPLE" | grep "s__Lactiplantibacillus plantarum" | cut -f1 > "$WORKDIR/isolates.tsv"
+
+# Link the reads from each isolate to the the raw reads folder
+while IFS=$'\t' read -r sample
+do
+    isolate=${sample%_?-contigs}
+    r1=$(ls "$LOCATION_ISOLATES"/Pool_???/02.Rm_adapters/fastq_clean/*.clean_1.fq.gz | grep -v '/Pool_589/' | grep "${isolate}.clean_1.fq.gz")
+    r2="${r1%1.fq.gz}2.fq.gz"
+
+    ln -fs "${r1}" "${RAW_READS}/${isolate}_1.fq.gz"
+    ln -fs "${r2}" "${RAW_READS}/${isolate}_2.fq.gz"
+
+done < "$WORKDIR/isolates.tsv"
+
+# Prepare the reference
+bowtie2-build --threads 16 "$REFERENCE"/LplaWF.fa "$REFERENCE"/LplaWF
+
+
+# Map each isolate against the reference
+numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
+processed=1
+echo -e "Starting mapping of ${numsamples} samples"
+
+for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
+do
+
+  name=$(echo "$i" | cut -d "_" -f1)
+  
+  echo -e "Mapping sample ${name} (${processed}/${numsamples})"
+
+  # Map paired end reads using bowtie with stringent settings and output the result to a sam file
+  bowtie2 \
+    -x "$REFERENCE"/LplaWF \
+    -q --very-sensitive \
+    --no-mixed \
+    --no-discordant \
+    -1 "$RAW_READS"/${name}_1.fq.gz \
+    -2 "$RAW_READS"/${name}_2.fq.gz \
+    -S "$MAPPED"/${name}.sam \
+    --threads 16 \
+    --rg-id "${name}" \
+    --rg "SM:${name}" > "$LOGS"/bowtie2_${name}.log 2>&1
+
+  # Turn the sam into bam to save memory, and sort it
+  samtools view \
+    -bS \
+    -@ 16 \
+    "$MAPPED"/${name}.sam |\
+  samtools sort \
+    -@ 16 \
+    -o "$MAPPED/${name}_sorted.bam"
+
+  # Delete the sam
+  rm "$MAPPED"/${name}.sam
+
+  # Index the bam
+  samtools index "$MAPPED/${name}_sorted.bam"
+
+  # Extract the coverage of the plasmid and the housekeeping gene recA
+  samtools depth -r contig_2 "$MAPPED/${name}_sorted.bam" | awk -v name="$name" 'BEGIN {OFS="\t"} {print $0, name, "plasmid"}' > "$WORKDIR/${name}_cov_plasmid.tmp"
+  samtools depth -r contig_2:102018-184830 "$MAPPED/${name}_sorted.bam" | awk -v name="$name" 'BEGIN {OFS="\t"} {print $0, name, "island"}' > "$WORKDIR/${name}_cov_island.tmp"
+  samtools depth -r contig_3:2097241-2098383 "$MAPPED/${name}_sorted.bam" | awk -v name="$name" 'BEGIN {OFS="\t"} {print $0, name, "recA"}' > "$WORKDIR/${name}_cov_recA.tmp"
+
+  # Next iteration
+  processed=$((processed+1))
+done
+
+# Create the header and the body of the coverage table
+echo -e "contig\tposition\tcoverage\tisolate\tgene" > "$WORKDIR/header.temp"
+cat "$WORKDIR"/*.tmp > "$WORKDIR/body.temp"
+cat "$WORKDIR/header.temp" "$WORKDIR/body.temp" > "$WORKDIR/coverage.tsv"
+
+# Remove the temporary files
+rm "$WORKDIR"/*.t*mp
