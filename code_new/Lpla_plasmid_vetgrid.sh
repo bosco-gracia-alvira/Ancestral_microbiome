@@ -88,13 +88,15 @@ done < "$WORKDIR/isolates.tsv"
 # Prepare the reference
 bowtie2-build --threads 16 "$REFERENCE"/LplaWF.fa "$REFERENCE"/LplaWF
 
-
 # Map each isolate against the reference
-numsamples=$(basename -a "$RAW_READS"/?F*_1.fq.gz | wc -l)
+numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
 processed=1
 echo -e "Starting mapping of ${numsamples} samples"
 
-for i in $(basename -a "$RAW_READS"/?F*_1.fq.gz)
+# Remove the temporary files
+rm "$WORKDIR"/*.t*mp
+
+for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
 do
 
   # If the sample is an isolates genome (doesn't start with ?F), keep only the first field, else keep the two first fields
