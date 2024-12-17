@@ -51,8 +51,8 @@ do
     # Only link the pool if the file exists
     if [[ -f "$LOCATION_HOT"/${i}/${i}_${j}_noCont_1.fq.gz ]]
     then
-      ln -s "$LOCATION_HOT"/${i}/${i}_${j}_noCont_1.fq.gz "$RAW_READS"/h${i}_${j}_1.fq.gz
-      ln -s "$LOCATION_HOT"/${i}/${i}_${j}_noCont_2.fq.gz "$RAW_READS"/h${i}_${j}_2.fq.gz
+      ln -fs "$LOCATION_HOT"/${i}/${i}_${j}_noCont_1.fq.gz "$RAW_READS"/h${i}_${j}_1.fq.gz
+      ln -fs "$LOCATION_HOT"/${i}/${i}_${j}_noCont_2.fq.gz "$RAW_READS"/h${i}_${j}_2.fq.gz
     fi
   done
 done
@@ -64,8 +64,8 @@ do
     # Only link the pool if the file exists
     if [[ -f "$LOCATION_COLD"/${i}/${i}_${j}_noCont_1.fq.gz ]]
     then
-      ln -s "$LOCATION_COLD"/${i}/${i}_${j}_noCont_1.fq.gz "$RAW_READS"/c${i}_$(($j-10))_1.fq.gz
-      ln -s "$LOCATION_COLD"/${i}/${i}_${j}_noCont_2.fq.gz "$RAW_READS"/c${i}_$(($j-10))_2.fq.gz
+      ln -fs "$LOCATION_COLD"/${i}/${i}_${j}_noCont_1.fq.gz "$RAW_READS"/c${i}_$(($j-10))_1.fq.gz
+      ln -fs "$LOCATION_COLD"/${i}/${i}_${j}_noCont_2.fq.gz "$RAW_READS"/c${i}_$(($j-10))_2.fq.gz
     fi
   done
 done
