@@ -89,7 +89,7 @@ done < "$WORKDIR/isolates.tsv"
 bowtie2-build --threads 16 "$REFERENCE"/LplaWF.fa "$REFERENCE"/LplaWF
 
 # Map each isolate against the reference
-numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
+numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l | sed "s/ //g")
 processed=1
 echo -e "Starting mapping of ${numsamples} samples"
 
