@@ -3,9 +3,12 @@ library(ggplot2)
 library(dplyr)
 library(tidyverse)
 library(stringr)
+library(GenomicRanges)
+library(rtracklayer)
 
 # Paths to the files that we want to import (and export)
 cov_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_plasmid/"
+gff_path <- paste0(cov_path,"/reference/LplaWF.gff")
 metadata_isolates_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/SNPs_analysis/metadata.tsv"
 visuals_path <- "/Users/bgracia/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Lpla_plasmid"
 
@@ -54,7 +57,7 @@ recA <- cov_merged %>% filter(gene=="recA")
 # Plot and save the data :)
 # Coverage of the whole plasmid per isolate
 plot_cov_plasmid <- ggplot(plasmid, aes(x = position, y = coverage, colour = Genotype)) +
-                        annotate("rect", xmin = 102018, xmax = 184830, ymin = 1, ymax = Inf, alpha = 0.2, fill = "lightgreen") +
+                        annotate("rect", xmin = 102018, xmax = 184830, ymin = -Inf, ymax = Inf, alpha = 0.2, fill = "lightgreen") +
                         geom_point(size=0.03) +
                         #scale_y_continuous(trans='log10') +
                         scale_colour_manual(values = c("S239" = "red", "B89" = "grey", "S103" = "lightblue")) +
@@ -74,7 +77,7 @@ ggsave(filename = "plot_cov_plasmid.png", plot = plot_cov_plasmid, path = visual
 
 # Coverage of the whole plasmid for all the isolates
 plot_cov_plasmid_all <- ggplot(plasmid, aes(x = position, y = coverage, colour = Genotype)) +
-                            annotate("rect", xmin = 102018, xmax = 184830, ymin = 1, ymax = Inf, alpha = 0.2, fill = "lightgreen") +
+                            annotate("rect", xmin = 102018, xmax = 184830, ymin = -Inf, ymax = Inf, alpha = 0.2, fill = "lightgreen") +
                             geom_point(size=0.03) +
                             scale_colour_manual(values = c("S239" = "red", "B89" = "grey", "S103" = "lightblue")) +
                             scale_x_continuous(labels = scales::scientific) +
@@ -110,7 +113,7 @@ plot_cov_recA
 ggsave(filename = "plot_cov_recA.png", plot = plot_cov_recA, path = visuals_path, width = 24, height = 12, dpi = 300)
 
 plot_cov_norm <- ggplot(plasmid, aes(x = position, y = norm_coverage, colour = Genotype)) +
-                    annotate("rect", xmin = 102018, xmax = 184830, ymin = 1, ymax = Inf, alpha = 0.2, fill = "lightgreen") +
+                    annotate("rect", xmin = 102018, xmax = 184830, ymin = -Inf, ymax = Inf, alpha = 0.2, fill = "lightgreen") +
                     geom_point(size=0.03) +
                     scale_colour_manual(values = c("S239" = "red", "B89" = "grey", "S103" = "lightblue")) +
                     scale_x_continuous(labels = scales::scientific) +
@@ -125,6 +128,76 @@ plot_cov_norm <- ggplot(plasmid, aes(x = position, y = norm_coverage, colour = G
 plot_cov_norm
 
 ggsave(filename = "plot_cov_norm.png", plot = plot_cov_norm, path = visuals_path, width = 24, height = 12, dpi = 300)
+
+
+# Import GFF of the reference genome
+gff <- as.data.frame(import(gff_path))
+
+# Extract the gene annotations from the plasmid (contig_2)
+gene_annotations <- gff %>%
+  filter(seqnames == "contig_2") %>% 
+  select(seqnames, start, end, type, gene_id = ID, Name)
+
+# Create a GRanges object for the plasmid's coverage data
+coverage_gr <- GRanges(seqnames = plasmid$contig,
+                       ranges = IRanges(start = plasmid$position, end = plasmid$position),
+                       coverage = plasmid$coverage,
+                       sample = plasmid$sample)
+
+# Create a GRanges object for the gene annotations
+genes_gr <- GRanges(seqnames = gene_annotations$seqnames,
+                    ranges = IRanges(start = gene_annotations$start, end = gene_annotations$end),
+                    gene_id = gene_annotations$gene_id,
+                    Name = gene_annotations$Name)
+
+# Find overlaps between coverage data and gene annotations
+overlaps <- findOverlaps(coverage_gr, genes_gr)
+
+# Extract the coverage values, gene IDs, sample IDs, and gene functions for the overlapping regions
+coverage_values <- coverage_gr[queryHits(overlaps)]$coverage
+gene_ids <- genes_gr[subjectHits(overlaps)]$gene_id
+sample_ids <- coverage_gr[queryHits(overlaps)]$sample
+gene_functions <- genes_gr[subjectHits(overlaps)]$Name
+
+
+# Create a data frame with the coverage values, gene IDs, sample IDs, and gene functions
+coverage_gene_df <- data.frame(gene_id = gene_ids, coverage = coverage_values, sample = sample_ids, gene_function = gene_functions)
+
+# Calculate the average coverage for each gene for each sample and associate a genotype per sample
+average_coverage <- coverage_gene_df %>%
+  group_by(gene_id, sample, gene_function) %>%
+  summarize(average_coverage = mean(coverage), .groups = 'drop') %>% 
+  left_join(unique(cov_merged[,c(1,17)]), by = "sample") %>%
+  mutate(transposable = if_else(grepl("Transposase|transposase|Mobile", gene_function), "red", "black"))
+
+average_B25 <- average_coverage %>% filter(sample == "B25")
+
+ggplot(average_B25, aes(x = gene_id, y = average_coverage, colour = gene_function)) +
+  geom_point()
+
+
+ggplot(average_coverage, aes(x = gene_id, y = average_coverage, colour = transposable)) +
+  geom_point() +
+  scale_colour_identity() +
+  theme_minimal() +
+  facet_wrap(~ sample, scales = "free_y") +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 90, hjust = 1),
+    axis.text.y = element_text(size = 10),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    legend.text = NULL)
+
+  scale_colour_manual(values = c("S239" = "red", "B89" = "grey", "S103" = "lightblue")) +
+  scale_x_continuous(labels = scales::scientific) +
+  labs(title = "Normalised coverage of the plasmid in each the isolate", x = "Position", y = "Normalised coverage") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 90, hjust = 1),
+    axis.text.y = element_text(size = 10),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14))
+
 
 
 ### Pools analysis
@@ -157,7 +230,7 @@ cov_summed_pools_plasmid <- cov_summed_pools %>%
                                     mutate(recA_mean = replace_na(recA_mean, 0))
 
 plot_cov_pools <- ggplot(cov_summed_pools_plasmid, aes(x = position, y = total_coverage, colour = temperature)) +
-                      annotate("rect", xmin = 102018, xmax = 184830, ymin = 1, ymax = Inf, alpha = 0.2, fill = "lightgreen") +
+                      annotate("rect", xmin = 102018, xmax = 184830, ymin = -Inf, ymax = Inf, alpha = 0.2, fill = "lightgreen") +
                       geom_point(size=0.03) +
                       geom_hline(aes(yintercept = recA_mean), linetype = "dashed", color = "black") +
                       scale_colour_manual(values = c("hot" = "red", "cold" = "lightblue")) +
