@@ -115,7 +115,7 @@ done
 bowtie2-build --threads 16 "$GENOMES"/combined.fa "$GENOMES"/combined
 
 # Competitive mapping against each of the reads sets
-numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
+numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l | sed "s/ //g")
 processed=1
 echo -e "Starting competitive mapping of ${numsamples} samples"
 
