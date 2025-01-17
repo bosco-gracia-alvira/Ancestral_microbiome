@@ -203,10 +203,7 @@ plot_list <- list()
 
 # We iterate to create a ggplot object for each series
 for(i in seq_along(tpm_list)) {
-  
-  # Open a graphics device (e.g., PNG)
-  png(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"))
-  
+
   # Create a plot for each data frame
  p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Taxon)) +
     geom_area() +
@@ -218,14 +215,24 @@ for(i in seq_along(tpm_list)) {
   
    p
   #Save the plot using ggsave
-  ggsave(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
+  ggsave(filename = paste0("Microbiome_dynamics_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
 
-  # Close the graphics device
-  dev.off()
-   #ggsave(filename = paste0(visuals_path,"Microbiome_dynamics",,".png"), width = 6, height = 4, dpi = 300)
-  
   # Store the plot in the list
   plot_list[[i]] <- p
+  
+  # We also want to plot the prevalence of L. plantarum
+  l <- ggplot(tpm_list[[i]] %>% filter(Taxon == "s__Lactiplantibacillus_plantarum"),
+              aes(x = generation, y = TPM/10000)) +
+    geom_area() +
+    ylab("Relative abundance of L. plantarum (%)") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    xlab("Generation") +
+    labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
+  
+  l
+  
+  #Save the plot using ggsave
+  ggsave(filename = paste0("Lpla_",names(tpm_list)[i],".png"), plot = l, path = visuals_path, width = 20, height = 6, dpi = 300)
 }
 
 for(p in plot_list) {
@@ -258,10 +265,7 @@ plot_list <- list()
 
 # We iterate to create a ggplot object for each series
 for(i in seq_along(tpm_list)) {
-  
-  # Open a graphics device (e.g., PNG)
-  png(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"))
-  
+
   # Create a plot for each data frame
  p <- ggplot(tpm_list[[i]], aes(x = generation, y = mean_TPM, fill = Taxon)) +
     geom_area() +
@@ -271,16 +275,26 @@ for(i in seq_along(tpm_list)) {
     xlab("Generation") +
     labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
   
-   p
+  p
   #Save the plot using ggsave
-  ggsave(filename = paste0("Microbiome_dynamics ",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
+  ggsave(filename = paste0("Microbiome_dynamics_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
 
-  # Close the graphics device
-  dev.off()
-   #ggsave(filename = paste0(visuals_path,"Microbiome_dynamics",,".png"), width = 6, height = 4, dpi = 300)
-  
   # Store the plot in the list
   plot_list[[i]] <- p
+  
+  # We also want to plot the prevalence of L. plantarum
+  l <- ggplot(tpm_list[[i]] %>% filter(Taxon == "s__Lactiplantibacillus_plantarum"),
+              aes(x = generation, y = mean_TPM/10000)) +
+    geom_area() +
+    ylab("Relative abundance of L. plantarum (%)") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    xlab("Generation") +
+    labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
+  
+  l
+  
+  #Save the plot using ggsave
+  ggsave(filename = paste0("Lpla_",names(tpm_list)[i],".png"), plot = l, path = visuals_path, width = 20, height = 6, dpi = 300)
 }
 
 for(p in plot_list) {
@@ -290,4 +304,63 @@ for(p in plot_list) {
 ```
 
 
+```{r L. plantarum abundance}
+
+tpm_lac_rep <- tpm_pools_long_merged %>% 
+                      filter(Taxon == "s__Lactiplantibacillus_plantarum") %>% 
+                      mutate(percentage = TPM/10000) %>% 
+                      mutate(temperature = case_when(
+                            generation == "0" ~ "base",
+                            TRUE ~ temperature)) %>% 
+                      mutate(Colour = case_when(
+                            grepl("hot", temperature) ~ "red",
+                            grepl("cold", temperature) ~ "blue",
+                            grepl("base", temperature) ~ "grey"))
+
+tpm_lac_temp <- tpm_pools_long_temp %>% 
+                      filter(Taxon == "s__Lactiplantibacillus_plantarum") %>% 
+                      mutate(percentage = mean_TPM/10000) %>% 
+                      mutate(temperature = case_when(
+                            generation == "0" ~ "base",
+                            TRUE ~ temperature)) %>% 
+                      mutate(Colour = case_when(
+                            grepl("hot", temperature) ~ "red",
+                            grepl("cold", temperature) ~ "blue",
+                            grepl("base", temperature) ~ "grey"))
+
+box_lac_rep <- ggplot(tpm_lac_rep, aes(x=temperature, y=percentage, colour=Colour)) +
+              geom_violin() +
+              scale_y_log10() +
+              geom_point(position = position_jitterdodge(jitter.width = 0.2)) +
+              scale_color_identity() +
+              labs(title = "Abundance of L. plantarum per replicate and temperature regime", 
+                   x = "Temperature", 
+                   y = "Relative abundance of L. plantarum (%)") +
+              theme_minimal()
+box_lac_rep
+
+#Save the plot using ggsave
+ggsave(filename = "prop_lac_rep.png", plot = box_lac_rep, path = visuals_path, width = 10, height = 6, dpi = 300)
+
+box_lac_temp <- ggplot(tpm_lac_temp, aes(x=temperature, y=percentage, colour=Colour)) +
+              geom_boxplot() +
+              scale_y_log10() +
+              geom_point(position = position_jitterdodge(jitter.width = 0.2)) +
+              scale_color_identity() +
+              labs(title = "Abundance of L. plantarum per temperature regime", 
+                   x = "Temperature", 
+                   y = "Relative abundance of L. plantarum (%)") +
+              theme_minimal()
+box_lac_temp
+
+#Save the plot using ggsave
+ggsave(filename = "prop_lac_temp.png", plot = box_lac_temp, path = visuals_path, width = 10, height = 6, dpi = 300)
+
+pairwise.wilcox.test(tpm_lac_rep$percentage, tpm_lac_rep$temperature, p.adjust.method = "bonferroni")
+pairwise.wilcox.test(tpm_lac_temp$percentage, tpm_lac_temp$temperature, p.adjust.method = "bonferroni")
+
+hist(tpm_lac_rep$percentage, breaks=100)
+hist(tpm_lac_temp$percentage, breaks=100)
+
+```
 
