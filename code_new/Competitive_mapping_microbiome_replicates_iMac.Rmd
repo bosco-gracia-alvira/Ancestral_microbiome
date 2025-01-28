@@ -213,7 +213,8 @@ for(i in seq_along(tpm_list)) {
     xlab("Generation") +
     labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
   
-   p
+ p
+  
   #Save the plot using ggsave
   ggsave(filename = paste0("Microbiome_dynamics_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
 
@@ -275,7 +276,8 @@ for(i in seq_along(tpm_list)) {
     xlab("Generation") +
     labs(fill = "Taxon", title = paste("Sample", names(tpm_list)[i]))
   
-  p
+ p
+  
   #Save the plot using ggsave
   ggsave(filename = paste0("Microbiome_dynamics_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 20, height = 6, dpi = 300)
 
