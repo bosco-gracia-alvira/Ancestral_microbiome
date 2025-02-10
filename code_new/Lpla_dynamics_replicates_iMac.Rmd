@@ -6,17 +6,19 @@ output: html_document
 ---
 
 ```{r setup}
+
 knitr::opts_knit$set(root.dir = "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics")
 knitr::opts_chunk$set(echo = FALSE)
-library(lattice)
-library(data.table)
-library(Biostrings)
-library(ggplot2)
-library(dplyr)
-library(tidyverse)
-library(stringr)
-library(gtools)
-library(pheatmap)
+
+library(lattice) ; packageVersion("lattice")
+library(data.table) ; packageVersion("data.table")
+library(Biostrings) ; packageVersion("Biostrings")
+library(ggplot2) ; packageVersion("ggplot2")
+library(dplyr) ; packageVersion("dplyr")
+library(tidyverse) ; packageVersion("tidyverse")
+library(stringr) ; packageVersion("stringr")
+library(gtools) ; packageVersion("gtools")
+library(pheatmap) ; packageVersion("pheatmap")
 
 ```
 
@@ -145,6 +147,7 @@ for(i in seq_along(tpm_list)) {
       ylab("Strain relative Abundance") +
       scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
       theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+      theme_minimal() +
       xlab("Generation") +
       labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
 
@@ -198,6 +201,7 @@ for(i in seq_along(tpm_list)) {
       ylab("Strain relative Abundance") +
       scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
       theme(axis.text.x = element_text(angle = 90, hjust = 1, size=15)) +
+      theme_minimal() +
       xlab("Generation") +
       labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
 
@@ -220,7 +224,7 @@ for(p in plot_list) {
 
 
 
-```{r Growth simulations}
+```{r Maximum growth simulations}
 
 # In this chunk we simulate the growth dynamics in competition using the initial frequencies observed in each replicate and the maximum growth rate calculated for each strain in the bacterial growth experiment (2024-09-20).
 
@@ -238,7 +242,7 @@ initial_frequencies_list <- initial_frequencies %>%
                           select(S103,S239,B89) %>% 
                           split(1:nrow(.))
 
-# Define the growth rates for each genotype
+# I pick the maximum growth rate per genotype
 growth_rates <- c(S103 = 0.4474828, S239 = 0.4984939, B89 = 0.3139280)  # Growth rates (OD/h) for each genotype
 
 # Number of time steps to simulate
@@ -333,7 +337,118 @@ ggsave(filename = "growth_simulations.png", plot = growth_sims, path = visuals_p
 
 ```
 
+```{r Average growth simulations}
 
+# In this chunk we simulate the growth dynamics in competition using the initial frequencies observed in each replicate and the maximum growth rate calculated for each strain in the bacterial growth experiment (2024-09-20).
+
+initial_frequencies <- tpm_pools_long %>%
+                    filter(generation == 0) %>% 
+                    filter(temperature == "hot") %>% 
+                    group_by(replicate) %>%
+                    mutate(Frequency = TPM / sum(TPM)) %>% 
+                    select(-c(TPM,Sample,generation,temperature,list))
+
+# Convert to a list of initial frequencies for each replicate
+initial_frequencies_list <- initial_frequencies %>%
+                          pivot_wider(names_from = Strain, values_from = Frequency) %>%
+                          ungroup() %>% 
+                          select(S103,S239,B89) %>% 
+                          split(1:nrow(.))
+
+# I pick the maximum growth rate per genotype
+growth_rates <- c(S103 = 0.2449759, S239 = 0.3878575, B89 = 0.3003611)  # Growth rates (OD/h) for each genotype
+
+# Number of time steps to simulate
+time_steps <- 100
+time_interval <- 1  # Time interval for each step (e.g., 1 hour)
+
+# Initialize a list to store the results for all replicates
+all_simulations <- list()
+
+# Run the simulation for each replicate
+for (replicate in 1:length(initial_frequencies_list)) {
+  initial_frequencies <- unlist(initial_frequencies_list[[replicate]])
+  
+  # Initialize population sizes
+  population_sizes <- initial_frequencies
+  
+  # Initialize a matrix to store the population sizes over time
+  population_over_time <- matrix(0, nrow = time_steps + 1, ncol = length(population_sizes))
+  population_over_time[1, ] <- population_sizes
+  
+  # Simulate population dynamics
+  for (t in 1:time_steps) {
+    # Update population sizes based on growth rates
+    population_sizes <- population_sizes * 2^(growth_rates * time_interval)
+    
+    # Normalize to keep the total population size constant
+    population_sizes <- population_sizes / sum(population_sizes)
+    
+    # Store the population sizes
+    population_over_time[t + 1, ] <- population_sizes
+  }
+  
+  # Convert to a data frame for plotting
+  time <- seq(0, time_steps * time_interval, by = time_interval)
+  population_df <- data.frame(time, population_over_time)
+  colnames(population_df) <- c("Time", names(initial_frequencies))
+  population_df$Replicate <- replicate
+  
+  # Store the result
+  all_simulations[[replicate]] <- population_df
+}
+
+# Combine all simulations into a single data frame
+combined_simulations <- bind_rows(all_simulations)
+
+# Convert to long format for plotting
+combined_simulations_long <- pivot_longer(combined_simulations, cols = -c(Time, Replicate), names_to = "Genotype", values_to = "Frequency")
+
+# Define the desired order of genotypes
+desired_order <- c("S103", "S239", "B89")
+
+# Set the levels of the Genotype factor to the desired order
+combined_simulations_rep <- combined_simulations_long %>%
+                mutate(Genotype = factor(Genotype, levels = desired_order))
+
+# Plot the simulations
+growth_sims_rep <- ggplot(combined_simulations_rep, aes(x = Time, y = Frequency, fill = Genotype)) +
+                      geom_area(size = 1) +
+                      facet_wrap(~ Replicate, ncol = 2) +
+                      labs(title = "Simulated bacterial dynamics",
+                           x = "Time (hours)",
+                           y = "Strain relative abundance",
+                           fill = "Genotype") +
+                      scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
+                      theme_minimal() +
+                      theme(legend.position = "none")
+growth_sims_rep
+
+ggsave(filename = "growth_simulations_rep_avg.png", plot = growth_sims_rep, path = visuals_path, width = 12, height = 6, dpi = 300)
+
+
+# Set the levels of the Genotype factor to the desired order
+combined_simulations <- combined_simulations_long %>%
+                mutate(Genotype = factor(Genotype, levels = desired_order)) %>% 
+                group_by(Time, Genotype) %>%
+                summarise(meanFreq = mean(Frequency, na.rm = TRUE)) %>%
+                ungroup()
+
+# Plot the simulations
+growth_sims <- ggplot(combined_simulations, aes(x = Time, y = meanFreq, fill = Genotype)) +
+                      geom_area(size = 1, alpha = 1) +
+                      labs(title = "Simulated bacterial dynamics (merged replicates)",
+                           x = "Time (hours)",
+                           y = "Strain relative abundance",
+                           fill = "Genotype") +
+                      scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
+                      theme_minimal() +
+                      theme(legend.position = "none")
+growth_sims
+
+ggsave(filename = "growth_simulations_avg.png", plot = growth_sims, path = visuals_path, width = 12, height = 6, dpi = 300)
+
+```
 
 ```{r Isolates' strain composition}
 
