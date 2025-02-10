@@ -6,17 +6,19 @@ output: html_document
 ---
 
 ```{r setup}
+
 knitr::opts_knit$set(root.dir = "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome")
 knitr::opts_chunk$set(echo = FALSE)
-library(lattice)
-library(data.table)
-library(Biostrings)
-library(ggplot2)
-library(dplyr)
-library(tidyverse)
-library(stringr)
-library(gtools)
-library(pheatmap)
+
+library(lattice) ; packageVersion("lattice")
+library(data.table) ; packageVersion("data.table")
+library(Biostrings) ; packageVersion("Biostrings")
+library(ggplot2) ; packageVersion("ggplot2")
+library(dplyr) ; packageVersion("dplyr")
+library(tidyverse) ; packageVersion("tidyverse")
+library(stringr) ; packageVersion("stringr")
+library(gtools) ; packageVersion("gtools")
+library(pheatmap) ; packageVersion("pheatmap")
 
 ```
 
