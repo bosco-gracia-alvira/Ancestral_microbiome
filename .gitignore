@@ -7,3 +7,5 @@ code
 ./code_new/.Rhistory
 .DS_Store
 code_new/anvi-script-enrichment-stats
+code_new/.RData
+.gitignore
