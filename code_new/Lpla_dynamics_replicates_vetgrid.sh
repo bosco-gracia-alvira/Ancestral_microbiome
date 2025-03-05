@@ -53,12 +53,14 @@ then
   mkdir "$GENOMES"
 fi
 
-# We create the graph pangenome for each strain using SuperPang in Vetlinux5, if the files don't exist
+# We create the graph pangenome for each strain using SuperPang in Vetlinux5, if the reference doesn't exist
 if [[ ! -f "$GENOMES"/combined.fa ]]
 then
+
     for strain in "S103" "S239" "B89";
     do
 
+    # Create the folder for each strain in vetlinux
     ssh -T vetlinux05@pgnsrv043.vu-wien.ac.at << FOO
 
         if [[ ! -d ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/Genomes ]]
@@ -68,6 +70,7 @@ then
 
 FOO
 
+    # Grep the genomes that belong to each strain and copy them to the strain folder
     grep "$strain" "$METADATA" |\
     while IFS=$'\t' read -r Strain Fasta Pool Temperature Generation Population Replicate Genotype rest
     do
@@ -78,6 +81,7 @@ FOO
 
     done
 
+    # Construct the graph pangenome in vetlinux
     ssh -T vetlinux05@pgnsrv043.vu-wien.ac.at << FOO
 
         eval "\$(conda shell.bash hook)"
@@ -104,17 +108,14 @@ FOO
 
 FOO
 
-    # Copy back the results to the Graph_pangenome folder
+    # Copy back the results to the genomes folder
     rsync -av \
         vetlinux05@pgnsrv043.vu-wien.ac.at:~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/"$strain".fasta \
         "$GENOMES"
 
     done
 
-    cat "$LOCATION_REFERENCES/${i}/${i}.fasta" |\
-    seqkit replace -p .+ -r "${i}_{nr}" --nr-width 3 > "$GENOMES/${i}.fasta"
-
-    # Combine the three genomes
+    # Combine the three genomes into a single reference
     cat "$GENOMES"/S103.fasta "$GENOMES"/S239.fasta "$GENOMES"/B89.fasta > "$GENOMES"/combined.fa
 fi
 
