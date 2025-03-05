@@ -259,6 +259,7 @@ echo -e "Size" > "$WORKDIR"/genome_size.col
 
 for j in "$GENOMES"/*.fasta
 do
+
     # Strain variable is the strain name
     strain=$(basename -a "${j}" | cut -d "." -f1)
     # Genome variable is the fasta file for each strain
@@ -270,6 +271,7 @@ do
     echo -e "${strain}" >> "$WORKDIR"/genome_name.col
     # Create a column with strain genome size
     seqkit stats "$GENOMES"/"${genome}" | awk 'NR==2 {print $7}' >> "$WORKDIR"/genome_size.col
+    
 done
 
 numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
