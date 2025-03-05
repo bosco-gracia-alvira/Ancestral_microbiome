@@ -5,6 +5,7 @@
 ### VARIABLES
 
 # Set the paths
+METADATA="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Lactiplantibacillus_plantarum/Pangenomic_Florida/metadata.tsv"
 WORKDIR="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics_replicates"
 VISUALS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Lpla_dynamics_replicates"
 BAMS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Competitive_mapping_microbiome_replicates/mapped"
@@ -52,16 +53,70 @@ then
   mkdir "$GENOMES"
 fi
 
-# Copy the three competting genomes. Entry names must be in the format S103_0001, S103_0002...
-S103="/Volumes/Data/Dropbox (PopGen)/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Isolates/S103.fasta"
-ln -s "$S103" "$GENOMES"
-S239="/Volumes/Data/Dropbox (PopGen)/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Isolates/S239.fasta"
-ln -s "$S239" "$GENOMES"
-B89="/Volumes/Data/Dropbox (PopGen)/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Isolates/B89.fasta"
-ln -s "$B89" "$GENOMES"
+# We create the graph pangenome for each strain using SuperPang in Vetlinux5, if the files don't exist
+if [[ ! -f "$GENOMES"/combined.fa ]]
+then
+    for strain in "S103" "S239" "B89";
+    do
 
-# Combine the three genomes
-cat "$GENOMES"/S103.fasta "$GENOMES"/S239.fasta "$GENOMES"/B89.fasta > "$GENOMES"/combined.fa
+    ssh -T vetlinux05@pgnsrv043.vu-wien.ac.at << FOO
+
+        if [[ ! -d ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/Genomes ]]
+        then  
+            mkdir -p ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/Genomes
+        fi
+
+FOO
+
+    grep "$strain" "$METADATA" |\
+    while IFS=$'\t' read -r Strain Fasta Pool Temperature Generation Population Replicate Genotype rest
+    do
+
+        rsync -av \
+                    "/Volumes/Data/Dropbox (PopGen)/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Isolates/$Fasta" \
+                    vetlinux05@pgnsrv043.vu-wien.ac.at:~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/Genomes/$Fasta
+
+    done
+
+    ssh -T vetlinux05@pgnsrv043.vu-wien.ac.at << FOO
+
+        eval "\$(conda shell.bash hook)"
+        conda activate SuperPang-0.9
+
+        cd ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"
+
+        echo "
+            Making pangenome for $strain.
+            "
+
+        SuperPang.py \
+                --fasta ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/Genomes/*.fasta \
+                --assume-complete \
+                --output-dir ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain" \
+                --force-overwrite \
+                --threads 24
+
+        cat ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/assembly.fasta |\
+            seqkit replace -p .+ -r "${strain}_{nr}" --nr-width 3 \
+            > ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/"$strain".fasta
+
+        rm -r ~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/Genomes
+
+FOO
+
+    # Copy back the results to the Graph_pangenome folder
+    rsync -av \
+        vetlinux05@pgnsrv043.vu-wien.ac.at:~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/"$strain".fasta \
+        "$GENOMES"
+
+    done
+
+    cat "$LOCATION_REFERENCES/${i}/${i}.fasta" |\
+    seqkit replace -p .+ -r "${i}_{nr}" --nr-width 3 > "$GENOMES/${i}.fasta"
+
+    # Combine the three genomes
+    cat "$GENOMES"/S103.fasta "$GENOMES"/S239.fasta "$GENOMES"/B89.fasta > "$GENOMES"/combined.fa
+fi
 
 # We create the raw reads folder and extract the reads from the bam files
 if [[ ! -d "$RAW_READS" ]]
