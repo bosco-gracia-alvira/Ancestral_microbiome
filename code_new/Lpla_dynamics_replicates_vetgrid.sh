@@ -74,11 +74,12 @@ FOO
     grep "$strain" "$METADATA" |\
     while IFS=$'\t' read -r Strain Fasta Pool Temperature Generation Population Replicate Genotype rest
     do
-
-        rsync -av \
-                    "/Volumes/Data/Dropbox (PopGen)/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Isolates/$Fasta" \
-                    vetlinux05@pgnsrv043.vu-wien.ac.at:~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/Genomes/$Fasta
-
+        if [[ ! "$Strain" =~ X595_|X79_|X81_ ]]
+        then
+            rsync -av \
+                        "/Volumes/Data/Dropbox (PopGen)/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Isolates/$Fasta" \
+                        vetlinux05@pgnsrv043.vu-wien.ac.at:~/Bosco/Ancestral_microbiome/Graph_pangenome/"$strain"/Genomes/$Fasta
+        fi
     done
 
     # Construct the graph pangenome in vetlinux
