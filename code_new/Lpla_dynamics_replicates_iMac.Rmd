@@ -46,6 +46,10 @@ size$Size <- gsub(",", "", size$Size)
 size$Size <- as.numeric(size$Size)
 size_vec <- as.vector(size[, 2])
 
+# Extract the number of reads per sample
+numreads <- data.frame(Sample = colnames(coverage),
+                       Reads = colSums(coverage))
+
 # Create a colour palette for our temperatures
 temp_palette <- c("HOT" = "red", "BASE" = "grey", "COLD" = "lightblue")
 
@@ -81,8 +85,11 @@ tpm_pools <- tpm %>% select(-starts_with("i"))
 tpm_pools <- rownames_to_column(tpm_pools, var = "Strain")
 
 # Melt the dataframe to long format
-tpm_i_long <- reshape2::melt(tpm_i, id.vars = "Strain", variable.name = "Sample", value.name = "TPM")
-tpm_pools_long <- reshape2::melt(tpm_pools, id.vars = "Strain", variable.name = "Sample", value.name = "TPM")
+tpm_i_long <- reshape2::melt(tpm_i, id.vars = "Strain", variable.name = "Sample", value.name = "TPM") %>% 
+                            left_join(numreads, by = join_by(Sample))
+
+tpm_pools_long <- reshape2::melt(tpm_pools, id.vars = "Strain", variable.name = "Sample", value.name = "TPM") %>% 
+                            left_join(numreads, by = join_by(Sample))
 
 # Set the factor levels of the strains
 tpm_i_long$Strain <- factor(tpm_i_long$Strain, levels = c("S103","S239","B89"))
@@ -124,7 +131,7 @@ nrow(tpm_pools_long)
 ```{r Trajectory over the time-replicates (pools)}
 
 # The table has information from 20 different time series (2 regimes * 10 replicates).
-#We create a list in which each series is an element.
+# We create a list in which each series is an element.
 
 # Create a unique identifier for each time series (TemperatureReplicate)
 tpm_pools_long$list <- paste0(tpm_pools_long$temperature,tpm_pools_long$replicate)
@@ -136,9 +143,6 @@ plot_list <- list()
 
 # We iterate to create a ggplot object for each series
 for(i in seq_along(tpm_list)) {
-  
-  # Open a graphics device (e.g., PNG)
-  png(filename = paste0("Pools_",names(tpm_list)[i],".png"))
   
   
   # Create a plot for each data frame
@@ -152,10 +156,7 @@ for(i in seq_along(tpm_list)) {
       labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
 
   ggsave(filename = paste0("Pools_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 12, height = 6, dpi = 300)
-  
-  # Close the graphics device
-  dev.off()
-
+ 
   # Store the plot in the list
   plot_list[[i]] <- p
 }
@@ -191,10 +192,6 @@ plot_list <- list()
 # We iterate to create a ggplot object for each series
 for(i in seq_along(tpm_list)) {
   
-  # Open a graphics device (e.g., PNG)
-  png(filename = paste0("Pools_",names(tpm_list)[i],".png"))
-  
-  
   # Create a plot for each data frame
   p <- ggplot(tpm_list[[i]], aes(x = generation, y = mean_TPM, fill = Strain)) +
       geom_area() +
@@ -206,9 +203,6 @@ for(i in seq_along(tpm_list)) {
       labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
 
   ggsave(filename = paste0("Pools_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 12, height = 6, dpi = 300)
-  
-  # Close the graphics device
-  dev.off()
 
   # Store the plot in the list
   plot_list[[i]] <- p
@@ -221,7 +215,116 @@ for(p in plot_list) {
 ```
 
 
+```{r Isolates' strain composition}
 
+# Import the metadata information of the isolates
+metadata_isolates <- fread(metadata_isolates_path, header=T)
+
+# Rename sample to Sample to match the tpm Sample names
+metadata_isolates <- metadata_isolates %>%
+                        select(sample, Temperature, Generation) %>%
+                        dplyr::rename(Sample = sample) %>%
+                        mutate(Sample = paste0("i",Sample)) %>%
+                        mutate(Source = "Isolate")
+
+# Merge TPM and metadata
+tpm_i_long_merged <- merge(tpm_i_long,metadata_isolates, by="Sample")
+
+# Plot the strain abundance of each isolate
+Isolates_plot <- ggplot(tpm_i_long_merged, aes(x = Sample, y = TPM, fill = Strain)) +
+                      geom_bar(stat = "identity", position = "stack") +
+                      ylab("Strain relative Abundance") +
+                      scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
+                      theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+                      xlab("Isolate") +
+                      labs(fill = "Strain", title = "Sample")
+
+ggsave(filename = "Isolates_composition.png", plot = Isolates_plot, path = visuals_path, width = 15, height = 6, dpi = 300)
+
+Isolates_plot
+
+```
+
+```{r Validating the method}
+
+# Is the method reliable when we use low covered data?
+
+# Import the coverage table for the subsampled data
+validation_path <- "/Users/bgracia/Dropbox (PopGen)/Bosco/PhD_Dropbox/Ancestral_microbiome/data/Lpla_dynamics_replicates/uniq_mapped_val.tsv"
+validation <- fread(validation_path)
+
+# Load the coverage, sort the samples alphanumerically and make them row names
+validation$Sample <- factor(validation$Sample , levels = mixedsort(validation$Sample))
+validation <- as.data.frame(validation[order(validation$Sample), ])
+row.names(validation) <- validation$Sample
+validation$Sample <- NULL
+validation <- as.data.frame(t(validation))
+
+# Extract the number of reads per sample
+Realreads_val <- data.frame(Sample = colnames(validation),
+                       RealReads = colSums(validation))
+
+# We normalise the data using tpm
+
+# First we divide the number of reads mapped to each genome by the genome size, and multiply by 1000 (kb)
+size_norm_val <- sweep(validation, 1, size_vec, FUN = "/") * 1e3
+
+# Counts normalised by genome size are then multiplied by 10^6 and divided by the total number of reads in each sample
+tpm_val <- as.data.frame(t(t(size_norm_val)*1e6/ colSums(size_norm_val)))
+
+# As a result, all columns (samples) add up to 10^6, regardless of their coverage
+colSums(tpm_val)
+
+tpm_val <- rownames_to_column(tpm_val, var = "Strain")
+tpm_val_long <- reshape2::melt(tpm_val, id.vars = "Strain", variable.name = "Sample", value.name = "TPM") %>% 
+                                                                                      separate(Sample, into = c("proportion", "TheoReads"), fill = "right", sep = "-", remove = FALSE) %>% 
+                                                                                      mutate(TheoReads = as.numeric(TheoReads)) %>% 
+                                                                                      left_join(Realreads_val, by = join_by(Sample))
+                                                                                            
+# Set the factor levels of the strains
+tpm_val_long$Strain <- factor(tpm_val_long$Strain, levels = c("S103","S239","B89"))
+
+# The table has information from six different time series. We create a list in which each series is an element.
+df_list_val <- split(tpm_val_long, tpm_val_long$proportion)
+plot_list_val <- list()
+
+# We iterate to create a ggplot object for each series
+for(i in seq_along(df_list_val)) {
+  # Create a plot for each data frame
+  v <- ggplot(df_list_val[[i]], aes(x = log(RealReads), y = TPM, fill = Strain)) +
+    geom_area() +
+    ylab("Relative Abundance") +
+    scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
+    geom_vline(xintercept = log(100), colour = "black", linetype = "dashed") +
+    geom_vline(xintercept = log(1000), colour = "black", linetype = "dashed") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    xlab("log(Reads)") +
+    labs(fill = "Strain", title = paste("Sample", names(df_list_val)[i]))
+    v
+    if (grepl("217", names(df_list_val)[i])) {
+    v <- v +
+      geom_hline(yintercept = 800000, colour = "black", linetype = "dashed") +
+      geom_hline(yintercept = 700000, colour = "black", linetype = "dashed")
+    } else if (grepl("333", names(df_list_val)[i])) {
+    v <- v +
+      geom_hline(yintercept = 330000, colour = "black", linetype = "dashed") +
+      geom_hline(yintercept = 660000, colour = "black", linetype = "dashed") 
+    } else if (grepl("811", names(df_list_val)[i])) {
+    v <- v +
+      geom_hline(yintercept = 200000, colour = "black", linetype = "dashed") +
+      geom_hline(yintercept = 100000, colour = "black", linetype = "dashed")
+    }
+  ggsave(filename = paste0("Validation_",names(df_list_val)[i],".png"), path = visuals_path, width = 6, height = 4, dpi = 300)
+  
+  # Store the plot in the list
+  plot_list_val[[i]] <- v
+}
+
+for(v in plot_list_val) {
+  print(v)
+}
+
+```
 
 
 ```{r Maximum growth simulations}
@@ -337,6 +440,7 @@ ggsave(filename = "growth_simulations.png", plot = growth_sims, path = visuals_p
 
 ```
 
+
 ```{r Average growth simulations}
 
 # In this chunk we simulate the growth dynamics in competition using the initial frequencies observed in each replicate and the maximum growth rate calculated for each strain in the bacterial growth experiment (2024-09-20).
@@ -448,40 +552,5 @@ growth_sims
 
 ggsave(filename = "growth_simulations_avg.png", plot = growth_sims, path = visuals_path, width = 12, height = 6, dpi = 300)
 
-```
-
-```{r Isolates' strain composition}
-
-# Import the metadata information of the isolates
-metadata_isolates <- fread(metadata_isolates_path, header=T)
-
-# Rename sample to Sample to match the tpm Sample names
-metadata_isolates <- metadata_isolates %>%
-                        select(sample, Temperature, Generation) %>%
-                        dplyr::rename(Sample = sample) %>%
-                        mutate(Sample = paste0("i",Sample)) %>%
-                        mutate(Source = "Isolate")
-
-# Merge TPM and metadata
-tpm_i_long_merged <- merge(tpm_i_long,metadata_isolates, by="Sample")
-
-# Open a graphics device (e.g., PNG)
-png(filename = "Isolates_composition.png")
-
-# Plot the strain abundance of each isolate
-Isolates_plot <- ggplot(tpm_i_long_merged, aes(x = Sample, y = TPM, fill = Strain)) +
-                      geom_bar(stat = "identity", position = "stack") +
-                      ylab("Strain relative Abundance") +
-                      scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
-                      theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-                      xlab("Generation") +
-                      labs(fill = "Strain", title = "Sample")
-
-  ggsave(filename = "Isolates_composition.png", plot = Isolates_plot, path = visuals_path, width = 15, height = 6, dpi = 300)
-  
-  # Close the graphics device
-  dev.off()
-
-Isolates_plot
 ```
 
