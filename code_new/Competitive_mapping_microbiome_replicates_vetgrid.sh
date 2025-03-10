@@ -138,7 +138,8 @@ do
   # Map paired end reads using bowtie with stringent settings and output the result to a sam file
   bowtie2 \
     -x "$GENOMES"/combined \
-    -q --very-sensitive \
+    -q \
+    -D 500 -R 40 -N 0 -L 20 -i S,1,0.50 \
     --no-mixed \
     --no-discordant \
     -1 "$RAW_READS"/${name}_1.fq.gz \
@@ -193,6 +194,17 @@ do
   processed=$((processed+1))
 done
 
+# Compute the mappability of the genomes using GenMap (installed in base conda)
+conda activate
+genmap index -FD "$GENOMES" -I "$GENOMES"/genmap
+genmap map -I "$GENOMES"/genmap -O "$GENOMES"/genmap -K 100 -E 0 -bg -t
+
+# Filter the bed files with "low mappability". I set the threshold in 0.5
+for beds in $(basename "$GENOMES"/genmap/*.bedgraph)
+do
+  awk '{if ($4+0 <= 0) print $0}' "$GENOMES"/genmap/${beds} > "$GENOMES"/genmap/${beds%genmap.bedgraph}bed
+done
+
 # This chunk calculates the statistics that we are intersted in:
 # Number of reads mapped to each genome
 # Number of reads mapped UNIQUELY to each genome
@@ -203,48 +215,56 @@ echo -e "Calculating reads mapped to each genome"
 rm -r "$WORKDIR"/*.col
 
 # For each of the original genomes we create a temporary file to store the number of reads mapped to it, as well as the sample and genome names and sizes
-
 echo -e "Sample" > "$WORKDIR"/sample_name.col
 echo -e "Genome" > "$WORKDIR"/genome_name.col
 echo -e "Size" > "$WORKDIR"/genome_size.col
 
-for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
+for j in "$GENOMES"/*.fasta
 do
-  echo -e "${j}" > "$WORKDIR"/${j}_reads.col
-  echo -e "${j}" > "$WORKDIR"/${j}_uniq.col
-  echo -e "${j}" > "$WORKDIR"/${j}_MedCov.col
+
+  # Species variable is the species name
+  species=$(basename -a "${j}" | cut -d "." -f1)
+  # Genome variable is the fasta file for each species
+  genome=$(basename -a "${j}")
+  # Create columns for reads mapping to each species: reads mapped, uniq reads mapped, median reads mapped
+  echo -e "${species}" > "$WORKDIR"/${species}_reads.col
+  echo -e "${species}" > "$WORKDIR"/${species}_uniq.col
+  echo -e "${species}" > "$WORKDIR"/${j}_MedCov.col
+  # Create a column with species names
+  echo -e "${species}" >> "$WORKDIR"/genome_name.col
+  # Create a column with species genome size
+  seqkit stats "$GENOMES"/"${genome}" | awk 'NR==2 {print $7}' >> "$WORKDIR"/genome_size.col
+
 done
 
-for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
-do
-  echo -e "${j}" >> "$WORKDIR"/genome_name.col
-  genome="$GENOMES/${j}.fasta"
-  seqkit stats "$genome" | awk 'NR==2 {print $7}' >> "$WORKDIR"/genome_size.col
-done
-
-# For each sample...
+# Reset the number of samples to process
 processed=1
 
+# For each sample...
 for i in $(basename -a "$MAPPED"/*)
 do
 
-  echo -e "Extracting reads from sample ${i} (${processed}/${numsamples})"
+  # Define the variables
+  sample=${i}
+  echo -e "Extracting reads from sample ${sample} (${processed}/${numsamples})"
   processed=$((processed+1))
+
   # Add the sample name to the file "sample_name.tmp"
-  echo ${i} >> "$WORKDIR"/sample_name.col
+  echo ${sample} >> "$WORKDIR"/sample_name.col
 
   # For each of the original genomes...
   for j in $(basename -a "$GENOMES"/*.fasta | cut -d "." -f1)
   do
-
+    # Species variable is the species name
+    species=$(basename -a "${j}" | cut -d "." -f1)
+    # Filter the bam file based on the mappability bed file
+    bedtools intersect -v -abam "$MAPPED"/${sample}/${species}.bam -b "$GENOMES"/genmap/combined.bed > "$MAPPED"/${sample}/${species}_filt.bam
     # Extract the number of reads mapped to the genome and add it to ""$WORKDIR"/${j}_reads.tmp"
-    samtools view -c -F 4 "$MAPPED"/${i}/${j}.bam >> "$WORKDIR"/${j}_reads.col
-
+    samtools view -c -F 4 "$MAPPED"/${sample}/${species}_filt.bam >> "$WORKDIR"/${species}_reads.col
     # Extract the number of reads mapped uniquely to the genome (with MAPQ>3) and add it to ""$WORKDIR"/${j}_uniq.tmp"
-    samtools view -c -F 4 -q 4 "$MAPPED"/${i}/${j}.bam >> "$WORKDIR"/${j}_uniq.col
-
+    samtools view -c -F 4 -q 4 "$MAPPED"/${sample}/${species}_filt.bam >> "$WORKDIR"/${species}_uniq.col
     # Extract the median coverage of the species in that sample
-    samtools depth -a "$MAPPED"/${i}/${j}.bam | \
+    samtools depth -a "$MAPPED"/${sample}/${species}_filt.bam | \
       awk '{print $3}' | sort -n | awk '{
         count[NR] = $1;
         }
@@ -255,7 +275,7 @@ do
                 median = (count[NR / 2] + count[NR / 2 + 1]) / 2;
             }
             print median;
-        }' >> "$WORKDIR"/${j}_MedCov.col
+        }' >> "$WORKDIR"/${species}_MedCov.col
   done 
   
 done
