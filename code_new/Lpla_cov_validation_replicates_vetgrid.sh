@@ -357,6 +357,7 @@ do
     
 done
 
+# Set the number of samples to process
 numsamples=$(basename -a "$MAPPED"/* | wc -l)
 processed=1
 
