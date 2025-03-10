@@ -384,7 +384,7 @@ do
         # Extract the number of reads mapped to the genome and add it to ""$WORKDIR"/${j}_reads.tmp"
         samtools view -@ 16 -c -F 4 "$MAPPED"/${sample}/${strain}_filt.bam >> "$WORKDIR"/${strain}_reads_val.col
         # Extract the number of reads mapped uniquely to the genome (with MAPQ>3) and add it to ""$WORKDIR"/${j}_uniq.tmp"
-        samtools view -@ 16 -c -F 4 -q 4 "$MAPPED"/${sample}/${strain}_filt.bam >> "$WORKDIR"/${strain}_uniq_val.col
+        samtools view -@ 16 -c -F 4 -q 20 "$MAPPED"/${sample}/${strain}_filt.bam >> "$WORKDIR"/${strain}_uniq_val.col
     done
 
 done

@@ -263,7 +263,7 @@ do
     # Extract the number of reads mapped to the genome and add it to ""$WORKDIR"/${j}_reads.tmp"
     samtools view -@ 16 -c -F 4 "$MAPPED"/${sample}/${species}_filt.bam >> "$WORKDIR"/${species}_reads.col
     # Extract the number of reads mapped uniquely to the genome (with MAPQ>3) and add it to ""$WORKDIR"/${j}_uniq.tmp"
-    samtools view -@ 16 -c -F 4 -q 4 "$MAPPED"/${sample}/${species}_filt.bam >> "$WORKDIR"/${species}_uniq.col
+    samtools view -@ 16 -c -F 4 -q 30 "$MAPPED"/${sample}/${species}_filt.bam >> "$WORKDIR"/${species}_uniq.col
     # Extract the median coverage of the species in that sample
     samtools depth -@ 16 -a "$MAPPED"/${sample}/${species}_filt.bam | \
       awk '{print $3}' | sort -n | awk '{
