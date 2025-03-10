@@ -199,7 +199,7 @@ conda activate
 genmap index -FD "$GENOMES" -I "$GENOMES"/genmap
 genmap map -I "$GENOMES"/genmap -O "$GENOMES"/genmap -K 100 -E 0 -bg -t
 
-# Filter the bed files with "low mappability". I set the threshold in 0.5
+# Filter the bed files with "low mappability". I set the threshold in 0, but can be adjusted
 for beds in $(basename "$GENOMES"/genmap/*.bedgraph)
 do
   awk '{if ($4+0 <= 0) print $0}' "$GENOMES"/genmap/${beds} > "$GENOMES"/genmap/${beds%genmap.bedgraph}bed
