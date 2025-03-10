@@ -223,7 +223,7 @@ do
   # Concatenate the forward reads from both strains and shuffle them, prior to further subsampling
   gzcat "$RAW_READS/iS103_${i}_temp.fq.gz" "$RAW_READS/iS239_${i}_temp.fq.gz" "$RAW_READS/iB89_${i}_temp.fq.gz" | seqkit shuffle -s $seed -o "$RAW_READS/mix811_${i}.fq.gz"
 
-done 
+done
 
 rm "$RAW_READS"/*_temp.*
 
