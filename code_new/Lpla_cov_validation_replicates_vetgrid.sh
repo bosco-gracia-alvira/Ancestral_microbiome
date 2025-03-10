@@ -263,7 +263,6 @@ do
   bowtie2 \
     -x "$GENOMES"/combined \
     -q \
-    --local \
     -D 500 -R 40 -N 0 -L 20 -i S,1,0.50 \
     --no-mixed \
     --no-discordant \
