@@ -287,7 +287,8 @@ do
     
 done
 
-numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l)
+# Set the number of samples to process
+numsamples=$(basename -a "$MAPPED"/* | wc -l)
 processed=1
 
 # For each sample...
