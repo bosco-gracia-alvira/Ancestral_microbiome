@@ -296,6 +296,7 @@ for(i in seq_along(df_list_val)) {
     ylab("Relative Abundance") +
     scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
     geom_vline(xintercept = log(100), colour = "black", linetype = "dashed") +
+    geom_vline(xintercept = log(500), colour = "black", linetype = "dashed") +
     geom_vline(xintercept = log(1000), colour = "black", linetype = "dashed") +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     xlab("log(Reads)") +
