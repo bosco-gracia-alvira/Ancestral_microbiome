@@ -229,7 +229,7 @@ do
   # Create columns for reads mapping to each species: reads mapped, uniq reads mapped, median reads mapped
   echo -e "${species}" > "$WORKDIR"/${species}_reads.col
   echo -e "${species}" > "$WORKDIR"/${species}_uniq.col
-  echo -e "${species}" > "$WORKDIR"/${j}_MedCov.col
+  echo -e "${species}" > "$WORKDIR"/${species}_MedCov.col
   # Create a column with species names
   echo -e "${species}" >> "$WORKDIR"/genome_name.col
   # Create a column with species genome size
@@ -260,11 +260,11 @@ do
     # Filter the bam file based on the mappability bed file
     bedtools intersect -v -abam "$MAPPED"/${sample}/${species}.bam -b "$GENOMES"/genmap/combined.bed > "$MAPPED"/${sample}/${species}_filt.bam
     # Extract the number of reads mapped to the genome and add it to ""$WORKDIR"/${j}_reads.tmp"
-    samtools view -c -F 4 "$MAPPED"/${sample}/${species}_filt.bam >> "$WORKDIR"/${species}_reads.col
+    samtools view -@ 16 -c -F 4 "$MAPPED"/${sample}/${species}_filt.bam >> "$WORKDIR"/${species}_reads.col
     # Extract the number of reads mapped uniquely to the genome (with MAPQ>3) and add it to ""$WORKDIR"/${j}_uniq.tmp"
-    samtools view -c -F 4 -q 4 "$MAPPED"/${sample}/${species}_filt.bam >> "$WORKDIR"/${species}_uniq.col
+    samtools view -@ 16 -c -F 4 -q 4 "$MAPPED"/${sample}/${species}_filt.bam >> "$WORKDIR"/${species}_uniq.col
     # Extract the median coverage of the species in that sample
-    samtools depth -a "$MAPPED"/${sample}/${species}_filt.bam | \
+    samtools depth -@ 16 -a "$MAPPED"/${sample}/${species}_filt.bam | \
       awk '{print $3}' | sort -n | awk '{
         count[NR] = $1;
         }
