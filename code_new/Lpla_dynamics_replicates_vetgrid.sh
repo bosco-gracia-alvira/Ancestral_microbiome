@@ -244,6 +244,17 @@ do
     rm "$MAPPED"/${name}/header.sam
 done
 
+# Compute the mappability of the genomes using GenMap (installed in base conda)
+conda activate
+genmap index -FD "$GENOMES" -I "$GENOMES"/genmap
+genmap map -I "$GENOMES"/genmap -O "$GENOMES"/genmap -K 100 -E 0 -bg -t
+
+# Filter the bed files with "low mappability". I set the threshold in 0.5
+for beds in $(basename "$GENOMES"/genmap/*.bedgraph)
+do
+  awk '{if ($4+0 <= 0) print $0}' "$GENOMES"/genmap/${beds} > "$GENOMES"/genmap/${beds%genmap.bedgraph}bed
+done
+
 # This chunk calculates the statistics that we are intersted in:
 # Number of reads mapped to each genome
 # Number of reads mapped UNIQUELY to each genome
@@ -295,6 +306,10 @@ do
     do
         # Strain variable is the strain name
         strain=$(basename -a "${j}" | cut -d "." -f1)
+        # Filter the bam file based on the mappability bed files
+        bedtools intersect -v -abam "$MAPPED"/${sample}/${strain}.bam -b "$GENOMES"/genmap/S103.bed > "$MAPPED"/${sample}/${strain}_filt.bam
+        bedtools intersect -v -abam "$MAPPED"/${sample}/${strain}.bam -b "$GENOMES"/genmap/S239.bed > "$MAPPED"/${sample}/${strain}_filt.bam
+        bedtools intersect -v -abam "$MAPPED"/${sample}/${strain}.bam -b "$GENOMES"/genmap/B89.bed > "$MAPPED"/${sample}/${strain}_filt.bam
         # Extract the number of reads mapped to the genome and add it to ""$WORKDIR"/${j}_reads.tmp"
         samtools view -c -F 4 "$MAPPED"/${sample}/${strain}.bam >> "$WORKDIR"/${strain}_reads.col
         # Extract the number of reads mapped uniquely to the genome (with MAPQ>3) and add it to ""$WORKDIR"/${j}_uniq.tmp"
@@ -307,6 +322,6 @@ paste "$WORKDIR"/genome_name.col "$WORKDIR"/genome_size.col > "$WORKDIR"/genome_
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_reads.col > "$WORKDIR"/reads_mapped.tsv
 paste "$WORKDIR"/sample_name.col "$WORKDIR"/*_uniq.col > "$WORKDIR"/uniq_mapped.tsv
 
-#rm -r "$WORKDIR"/*.col
+rm -r "$WORKDIR"/*.col
 
 echo -e "Mapping finished"
