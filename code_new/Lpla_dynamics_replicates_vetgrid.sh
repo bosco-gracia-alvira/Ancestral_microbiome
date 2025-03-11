@@ -253,7 +253,7 @@ genmap map -I "$GENOMES"/genmap -O "$GENOMES"/genmap -K 100 -E 0 -bg -t
 # Filter the bed files with "low mappability". I set the threshold in 0.5
 for beds in $(basename "$GENOMES"/genmap/*.bedgraph)
 do
-  awk '{if ($4+0 <= 0) print $0}' "$GENOMES"/genmap/${beds} > "$GENOMES"/genmap/${beds%genmap.bedgraph}bed
+  awk '{if ($4+0 <= 0.1) print $0}' "$GENOMES"/genmap/${beds} > "$GENOMES"/genmap/${beds%genmap.bedgraph}bed
 done
 
 # This chunk calculates the statistics that we are intersted in:
