@@ -86,10 +86,10 @@ tpm_pools <- rownames_to_column(tpm_pools, var = "Strain")
 
 # Melt the dataframe to long format
 tpm_i_long <- reshape2::melt(tpm_i, id.vars = "Strain", variable.name = "Sample", value.name = "TPM") %>% 
-                            left_join(numreads, by = join_by(Sample))
+                                                                                left_join(numreads, by = join_by(Sample))
 
 tpm_pools_long <- reshape2::melt(tpm_pools, id.vars = "Strain", variable.name = "Sample", value.name = "TPM") %>% 
-                            left_join(numreads, by = join_by(Sample))
+                                                                                left_join(numreads, by = join_by(Sample))
 
 # Set the factor levels of the strains
 tpm_i_long$Strain <- factor(tpm_i_long$Strain, levels = c("S103","S239","B89"))
@@ -146,7 +146,7 @@ for(i in seq_along(tpm_list)) {
   
   
   # Create a plot for each data frame
-  p <- ggplot(tpm_list[[i]], aes(x = generation, y = TPM, fill = Strain)) +
+  p <- ggplot(tpm_list[[i]] %>% filter(Reads > 100), aes(x = generation, y = TPM, fill = Strain)) +
       geom_area() +
       ylab("Strain relative Abundance") +
       scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
@@ -177,6 +177,7 @@ tpm_pools_long_temp <- tpm_pools_long %>%
   summarize(
     mean_TPM = mean(TPM, na.rm = TRUE),
     sd_TPM = sd(TPM, na.rm = TRUE),
+    sum_Reads = sum(Reads),
     .groups = 'drop'
   )
 
@@ -193,7 +194,7 @@ plot_list <- list()
 for(i in seq_along(tpm_list)) {
   
   # Create a plot for each data frame
-  p <- ggplot(tpm_list[[i]], aes(x = generation, y = mean_TPM, fill = Strain)) +
+  p <- ggplot(tpm_list[[i]] %>% filter(sum_Reads > 1000), aes(x = generation, y = mean_TPM, fill = Strain)) +
       geom_area() +
       ylab("Strain relative Abundance") +
       scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
