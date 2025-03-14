@@ -9,11 +9,13 @@ LOCATION_COLD="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ances
 LOCATION_HOT="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/data/poolseq_reads_hot"
 VISUALS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Ancestral_microbiome/visuals/Lpla_plasmid"
 LOCATION_ISOLATES="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Isolates_assembly"
+LOCATION_SNPS="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/Lactiplantibacillus_plantarum/Phylogeny/roary"
 TAXON2SAMPLE="/Volumes/Data/PopGen Dropbox/Martin McFly/Bosco/PhD_Dropbox/Microbiome_pangenomic_analysis/data/taxonomy.tsv"
 RAW_READS="$WORKDIR/reads"
 REFERENCE="$WORKDIR/reference"
 LOGS="$WORKDIR/logs"
 MAPPED="$WORKDIR/mapped"
+TREE="$WORKDIR/tree"
 
 # Create the folder where plots will go
 if [[ ! -f "$VISUALS" ]]
@@ -35,6 +37,11 @@ fi
 if [[ ! -d "$MAPPED" ]]
 then
   mkdir -p "$MAPPED"
+fi
+
+if [[ ! -d "$TREE" ]]
+then
+  mkdir -p "$TREE"
 fi
 
 if [[ ! -d "$LOGS" ]]
@@ -83,6 +90,10 @@ do
     ln -fs "${r2}" "${RAW_READS}/${isolate}_2.fq.gz"
 
 done < "$WORKDIR/isolates.tsv"
+
+# Link the short reads from LpWF to the raw reads folder
+ln -fs "${REFERENCE}/SRR28557241_1.fastq.gz" "${RAW_READS}/LpWF_1.fq.gz"
+ln -fs "${REFERENCE}/SRR28557241_2.fastq.gz" "${RAW_READS}/LpWF_2.fq.gz"
 
 # Prepare the reference
 bowtie2-build --threads 16 "$REFERENCE"/LplaWF.fa "$REFERENCE"/LplaWF
@@ -151,3 +162,39 @@ cat "$WORKDIR/header.temp" "$WORKDIR/body.temp" > "$WORKDIR/coverage.tsv"
 
 # Remove the temporary files
 rm "$WORKDIR"/*.t*mp
+
+# Build a phylogenetic tree of the isolates
+conda activate
+
+rm "$TREE/accessions.txt"
+touch "$TREE/accessions.txt"
+
+# Create a list of all the accessions
+for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
+do
+  name=${i%_1.fq.gz}
+  if [[ "$name" != ?F* ]]
+  then
+    echo "$name" >> "$TREE/accessions.txt"
+  fi
+done
+
+# Extract the accessions of interest from the MSA file from the phylogeny
+seqkit grep -f "$TREE/accessions.txt" \
+            -p \
+            -i \
+            -o "$TREE/Lpla.aln" \
+            "$LOCATION_SNPS/core_gene_alignment.aln"
+
+# Run snp-sites to extract only the SNPs
+snp-sites \
+    -mvp \
+    -o "$TREE/Lpla" \
+    "$TREE/Lpla.aln"
+
+# Run the tree
+iqtree \
+    -s "$TREE/Lpla.phylip" \
+    --boot 1000 \
+    -m GTR+ASC \
+    -T 16
