@@ -140,12 +140,12 @@ tpm_pools_long$list <- paste0(tpm_pools_long$temperature,tpm_pools_long$replicat
 tpm_list <- split(tpm_pools_long, tpm_pools_long$list)
 tpm_list <- tpm_list[names(tpm_list) != "isolateNA"]
 plot_list <- list()
+plot_list_abs <- list()
 
 # We iterate to create a ggplot object for each series
 for(i in seq_along(tpm_list)) {
   
-  
-  # Create a plot for each data frame
+  # Create a plot of relative abundance for each data frame 
   p <- ggplot(tpm_list[[i]] %>% filter(Reads > 100), aes(x = generation, y = TPM, fill = Strain)) +
       geom_area() +
       ylab("Strain relative Abundance") +
@@ -159,10 +159,30 @@ for(i in seq_along(tpm_list)) {
  
   # Store the plot in the list
   plot_list[[i]] <- p
+  
+  # Create a plot of absolute abundance for each data frame
+  r <- ggplot(tpm_list[[i]] %>% filter(Reads > 100), aes(x = generation, y = TPM*Reads/1000000, fill = Strain)) +
+      geom_area() +
+      ylab("Strain relative Abundance") +
+      scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+      theme_minimal() +
+      xlab("Generation") +
+      labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
+
+  ggsave(filename = paste0("Pools_abs_",names(tpm_list)[i],".png"), plot = r, path = visuals_path, width = 12, height = 6, dpi = 300)
+ 
+  # Store the plot in the list
+  plot_list_abs[[i]] <- r
+  
 }
 
 for(p in plot_list) {
   print(p)
+}
+
+for(r in plot_list_abs) {
+  print(r)
 }
 
 ```
@@ -189,12 +209,13 @@ tpm_list <- split(tpm_pools_long_temp, tpm_pools_long_temp$temperature)
 
 tpm_list <- tpm_list[names(tpm_list) != "isolateNA"]
 plot_list <- list()
+plot_list_abs <- list()
 
 # We iterate to create a ggplot object for each series
 for(i in seq_along(tpm_list)) {
   
   # Create a plot for each data frame
-  p <- ggplot(tpm_list[[i]] %>% filter(sum_Reads > 1000), aes(x = generation, y = mean_TPM, fill = Strain)) +
+  p <- ggplot(tpm_list[[i]] %>% filter(sum_Reads > 100), aes(x = generation, y = mean_TPM, fill = Strain)) +
       geom_area() +
       ylab("Strain relative Abundance") +
       scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
@@ -207,10 +228,30 @@ for(i in seq_along(tpm_list)) {
 
   # Store the plot in the list
   plot_list[[i]] <- p
+  
+  # Create a plot for each data frame
+  r <- ggplot(tpm_list[[i]] %>% filter(sum_Reads > 100), aes(x = generation, y = mean_TPM*sum_Reads/1000000, fill = Strain)) +
+      geom_area() +
+      ylab("Strain relative Abundance") +
+      scale_fill_manual(values = c("S239" = "red", "S103" = "lightblue", "B89" = "grey")) +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, size=15)) +
+      theme_minimal() +
+      xlab("Generation") +
+      labs(fill = "Strain", title = paste("Sample", names(tpm_list)[i]))
+
+  ggsave(filename = paste0("Pools_abs_",names(tpm_list)[i],".png"), plot = p, path = visuals_path, width = 12, height = 6, dpi = 300)
+
+  # Store the plot in the list
+  plot_list_abs[[i]] <- r
+  
 }
 
 for(p in plot_list) {
   print(p)
+}
+
+for(r in plot_list_abs) {
+  print(r)
 }
 
 ```
