@@ -99,7 +99,7 @@ ln -fs "${REFERENCE}/SRR28557241_2.fastq.gz" "${RAW_READS}/LpWF_2.fq.gz"
 bowtie2-build --threads 16 "$REFERENCE"/LplaWF.fa "$REFERENCE"/LplaWF
 
 # Map each isolate against the reference
-numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l | sed "s/ //g")
+numsamples=$(basename -a "$RAW_READS"/*_1.fq.gz | wc -l | bc)
 processed=1
 echo -e "Starting mapping of ${numsamples} samples"
 
