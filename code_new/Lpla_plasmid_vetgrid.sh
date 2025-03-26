@@ -104,7 +104,7 @@ processed=1
 echo -e "Starting mapping of ${numsamples} samples"
 
 # Remove the temporary files
-rm "$WORKDIR"/*.t*mp
+rm "$WORKDIR"/*.tmp
 
 for i in $(basename -a "$RAW_READS"/*_1.fq.gz)
 do
