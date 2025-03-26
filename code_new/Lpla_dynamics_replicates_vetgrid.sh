@@ -233,27 +233,18 @@ do
         # Make a list with all the contigs belonging to that genome
         contigs=$(samtools idxstats "$MAPPED"/${name}/combined_sorted.bam | cut -f 1 | grep "^${j}")
 
-        # From the combined bam, extract the reads that map the contigs of the specific genome "j"
-        # Then, add the header and create a new file with the reads mapping to "j"
-        samtools view -@ 16 -b "$MAPPED"/${name}/combined_sorted.bam $contigs |\
-            samtools reheader "$MAPPED"/${name}/header.sam - > "$MAPPED"/${name}/${j}.bam
+        # From the combined bam, extract the reads that map the contigs of the specific genome "genome"
+        # Save them in a cram file
+        samtools view \
+                    -@ 16 -C \
+                    -T "$GENOMES"/combined.fa \
+                    "$MAPPED"/${name}/combined_sorted.bam \
+                    $contigs > "$MAPPED"/${name}/${j}.cram
     done
 
     # Remove the combined bam file, the index and the header
     rm "$MAPPED"/${name}/combined_sorted.bam
     rm "$MAPPED"/${name}/combined_sorted.bam.bai
-    rm "$MAPPED"/${name}/header.sam
-done
-
-# Compute the mappability of the genomes using GenMap (installed in base conda)
-conda activate
-genmap index -FD "$GENOMES" -I "$GENOMES"/genmap
-genmap map -I "$GENOMES"/genmap -O "$GENOMES"/genmap -K 100 -E 0 -bg -t
-
-# Filter the bed files with "low mappability". I set the threshold in 0.5
-for beds in $(basename "$GENOMES"/genmap/*.bedgraph)
-do
-  awk '{if ($4+0 <= 0.1) print $0}' "$GENOMES"/genmap/${beds} > "$GENOMES"/genmap/${beds%genmap.bedgraph}bed
 done
 
 # This chunk calculates the statistics that we are intersted in:
@@ -308,14 +299,16 @@ do
     do
         # Strain variable is the strain name
         strain=$(basename -a "${j}" | cut -d "." -f1)
-        # Filter the bam file based on the mappability bed files
-        bedtools intersect -v -abam "$MAPPED"/${sample}/${strain}.bam -b "$GENOMES"/genmap/S103.bed > "$MAPPED"/${sample}/${strain}_filt.bam
-        bedtools intersect -v -abam "$MAPPED"/${sample}/${strain}.bam -b "$GENOMES"/genmap/S239.bed > "$MAPPED"/${sample}/${strain}_filt.bam
-        bedtools intersect -v -abam "$MAPPED"/${sample}/${strain}.bam -b "$GENOMES"/genmap/B89.bed > "$MAPPED"/${sample}/${strain}_filt.bam
-        # Extract the number of reads mapped to the genome and add it to ""$WORKDIR"/${j}_reads.tmp"
-        samtools view -@ 16 -c -F 4 "$MAPPED"/${sample}/${strain}.bam >> "$WORKDIR"/${strain}_reads.col
-        # Extract the number of reads mapped uniquely to the genome (with MAPQ>3) and add it to ""$WORKDIR"/${j}_uniq.tmp"
-        samtools view -@ 16 -c -F 4 -q 20 "$MAPPED"/${sample}/${strain}.bam >> "$WORKDIR"/${strain}_uniq.col
+        # Extract the number of reads mapped to the genome and add it to ""$WORKDIR"/${genome}_reads.tmp"
+        samtools view \
+                    -c -@ 24 -F 4 \
+                    -T "$GENOMES"/combined.fa \
+                    "$MAPPED"/${sample}/${strain}.cram >> "$WORKDIR"/${strain}_reads.col
+        # Extract the number of reads mapped uniquely to the genome (with MAPQ>20) and add it to ""$WORKDIR"/${genome}_uniq.tmp"
+        samtools view \
+                    -c -@ 24 -F 4 -q 20 \
+                    -T "$GENOMES"/combined.fa \
+                    "$MAPPED"/${sample}/${strain}.cram >> "$WORKDIR"/${strain}_uniq.col
     done 
 
 done
