@@ -188,7 +188,7 @@ for(r in plot_list_abs) {
 ```
 
 
-```{r Trajectory over the time - temperature}
+```{r Trajectory over the time - }
 
 # In this chunk we merge the samples from all the replicates.
 
